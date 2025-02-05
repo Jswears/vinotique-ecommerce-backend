@@ -1,21 +1,9 @@
+import {
+  ErrorResponse,
+  ResponseHeaders,
+  SuccessResponse,
+} from "../types/utils";
 import { formatDate } from "./formatDate";
-
-// Types
-interface ResponseHeaders {
-  [key: string]: string | boolean | number;
-}
-
-interface ErrorResponse {
-  statusCode: number;
-  body: string;
-  headers: ResponseHeaders;
-}
-
-interface SuccessResponse {
-  statusCode: number;
-  body: string;
-  headers: ResponseHeaders;
-}
 
 const DEFAULT_CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:3000";
 
