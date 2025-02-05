@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:createWine": "esbuild src/functions/Product/createWine/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/createWine/index.js",
+    "postbuild:createWine": "cd dist/createWine && zip -r index.zip index.js* && mv index.zip ../createWine.zip"
   },
   "keywords": [],
   "author": "",
@@ -13,6 +15,7 @@
   "devDependencies": {
     "@types/aws-lambda": "^8.10.147",
     "@types/node": "^22.13.1",
+    "esbuild": "^0.24.2",
     "typescript": "^5.7.3"
   }
 }
