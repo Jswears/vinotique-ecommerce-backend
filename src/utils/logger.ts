@@ -12,9 +12,8 @@ class Logger {
         new winston.transports.Console(), // Add console transport for debugging
         new WinstonCloudWatch({
           logGroupName: `/aws/lambda/${functionName}`, // Dynamic log group
-          logStreamName: `${functionName}-log-stream-${timestamp}`, // Dynamic log stream with timestamp
           awsRegion: process.env.AWS_REGION || "eu-central-1",
-          jsonMessage: true, // Ensure logs are sent as JSON
+          jsonMessage: true,
         }),
       ],
     });
