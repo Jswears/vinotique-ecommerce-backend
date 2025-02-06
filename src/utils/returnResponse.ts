@@ -60,11 +60,12 @@ export const createServerErrorResponse = (
 };
 
 export const createSuccessResponse = (
+  statusCode: number,
   body: string,
   headers: ResponseHeaders = getCorsHeaders()
 ): SuccessResponse => {
   return {
-    statusCode: 200,
+    statusCode,
     body,
     headers,
   };
