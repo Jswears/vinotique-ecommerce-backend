@@ -61,12 +61,12 @@ export const createServerErrorResponse = (
 
 export const createSuccessResponse = (
   statusCode: number,
-  body: string,
+  body: any,
   headers: ResponseHeaders = getCorsHeaders()
 ): SuccessResponse => {
   return {
     statusCode,
-    body,
+    body: JSON.stringify(body),
     headers,
   };
 };
