@@ -13,11 +13,13 @@ import { isValidUrl } from "../../../utils/validators/urlValidator";
 import { z } from "zod";
 import { Wine } from "../../../types";
 
-// Variables
-const dynamoDbClient = new DynamoDBClient({});
-const doClient = DynamoDBDocumentClient.from(dynamoDbClient);
+// Constants
 const TABLE_NAME = process.env.TABLE_NAME || "";
 const logger = new Logger("createWine");
+
+// DynamoDB client
+const dynamoDbClient = new DynamoDBClient({});
+const doClient = DynamoDBDocumentClient.from(dynamoDbClient);
 
 // Validate environment variables
 if (!TABLE_NAME) {

@@ -59,9 +59,9 @@ export const createServerErrorResponse = (
   return createErrorResponse(500, message, headers);
 };
 
-export const createSuccessResponse = (
+export const createSuccessResponse = <T>(
   statusCode: number,
-  body: any,
+  body: T,
   headers: ResponseHeaders = getCorsHeaders()
 ): SuccessResponse => {
   return {

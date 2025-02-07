@@ -6,7 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:createWine": "esbuild src/functions/Wine/createWine/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/createWine/index.js",
-    "postbuild:createWine": "cd dist/createWine && zip -r index.zip index.js* && mv index.zip ../createWine.zip"
+    "build:getWines": "esbuild src/functions/Wine/getWines/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/getWines/index.js",
+    "postbuild:createWine": "cd dist/createWine && zip -r index.zip index.js* && mv index.zip ../createWine.zip",
+    "postbuild:getWines": "cd dist/getWines && zip -r index.zip index.js* && mv index.zip ../getWines.zip"
   },
   "keywords": [],
   "author": "",
