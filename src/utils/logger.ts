@@ -5,11 +5,10 @@ class Logger {
   private logger: winston.Logger;
 
   constructor(functionName: string) {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-"); // Get current date and time in a safe format
     this.logger = winston.createLogger({
-      level: "info", // Set the log level
+      level: "info",
       transports: [
-        new winston.transports.Console(), // Add console transport for debugging
+        new winston.transports.Console(),
         new WinstonCloudWatch({
           logGroupName: `/aws/lambda/${functionName}`, // Dynamic log group
           awsRegion: process.env.AWS_REGION || "eu-central-1",
@@ -24,6 +23,10 @@ class Logger {
     });
   }
 
+  public setLogLevel(level: string) {
+    this.logger.level = level;
+  }
+
   public info(message: string, meta?: any) {
     this.logger.info(message, meta);
   }
@@ -34,6 +37,10 @@ class Logger {
 
   public error(message: string, meta?: any) {
     this.logger.error(message, meta);
+  }
+
+  public debug(message: string, meta?: any) {
+    this.logger.debug(message, meta);
   }
 }
 
