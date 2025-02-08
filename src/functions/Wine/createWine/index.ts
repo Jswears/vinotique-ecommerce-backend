@@ -4,17 +4,17 @@ import { APIGatewayEvent, Handler, Context } from "aws-lambda";
 import { v4 as uuidv4 } from "uuid";
 import {
   createBadRequestResponse,
-  createErrorResponse,
   createServerErrorResponse,
   createSuccessResponse,
 } from "../../../utils/returnResponse";
 import Logger from "../../../utils/logger";
 import { isValidUrl } from "../../../utils/validators/urlValidator";
 import { z } from "zod";
-import { Wine } from "../../../types";
 
 // Constants
 const TABLE_NAME = process.env.TABLE_NAME || "";
+const WINE_PREFIX = "WINE#";
+const CATEGORY_PREFIX = "CATEGORY#";
 const logger = new Logger("createWine");
 
 // DynamoDB client
@@ -27,7 +27,7 @@ if (!TABLE_NAME) {
 }
 
 // Zod schema
-enum WineTypeEnum {
+enum WineCategoryEnum {
   Red = "Red",
   White = "White",
   Rose = "Rose",
@@ -37,22 +37,35 @@ enum WineTypeEnum {
 }
 
 const WineSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  productName: z.string().min(1, "Name is required"),
   description: z.string().min(1, "Description is required"),
-  price: z.number().min(0.01, "Price must be greater than 0"),
-  wineType: z.nativeEnum(WineTypeEnum, {
-    errorMap: () => ({ message: "Invalid Wine Type" }),
-  }),
+  category: z.nativeEnum(WineCategoryEnum),
   region: z.string().min(1, "Region is required"),
-  producer: z.string().min(1, "Producer is required"),
-  year: z.number().min(1900, "Year must be greater than 1900"),
-  stock: z.number().min(0, "Stock must be greater than or equal to 0"),
-  sku: z.string().min(1, "SKU is required"),
+  country: z.string().min(1, "Country is required"),
+  grapeVarietal: z.array(z.string()).optional(),
+  vintage: z.number().min(1900, "Vintage year must be greater than 1900"),
+  alcoholContent: z
+    .number()
+    .min(0, "Alcohol content must be greater than or equal to 0")
+    .optional(),
+  sizeMl: z.number().min(1, "Size must be greater than 0").optional(),
+  price: z.number().min(0.01, "Price must be greater than 0"),
+  stockQuantity: z
+    .number()
+    .min(0, "Stock quantity must be greater than or equal to 0"),
   imageUrl: z.string().refine((url) => isValidUrl(url), {
     message: "Invalid image URL",
   }),
   createdAt: z.string().optional(),
-  isFeatured: z.boolean().default(false),
+  updatedAt: z.string().optional(),
+  rating: z
+    .number()
+    .min(0, "Rating must be greater than or equal to 0")
+    .optional(),
+  reviewCount: z
+    .number()
+    .min(0, "Review count must be greater than or equal to 0")
+    .optional(),
 });
 
 const validateWineSchema = (body: any) => {
@@ -72,38 +85,52 @@ export const createWine: Handler = async (
   event: APIGatewayEvent,
   context: Context
 ) => {
-  const body = JSON.parse(event.body || "{}");
-
   logger.info("Received request to create a new wine", {
     requestId: context.awsRequestId,
-    body: body,
+    body: event.body ? JSON.parse(event.body) : null,
   });
 
   try {
-    if (!body) {
-      logger.warn("Empty request body", { requestId: context.awsRequestId });
-      return createErrorResponse(400, "Request body is required");
+    if (!event.body) {
+      return createBadRequestResponse("Request body is required");
+    }
+
+    let body: unknown;
+    try {
+      body = JSON.parse(event.body);
+    } catch (error) {
+      return createBadRequestResponse("Invalid JSON in request body");
+    }
+
+    if (typeof body !== "object" || body === null) {
+      return createBadRequestResponse("Request body must be an object");
     }
 
     const validatedBody = validateWineSchema(body);
+    const productId = uuidv4();
+    const categoryId = `${CATEGORY_PREFIX}${validatedBody.category}`;
 
-    const wineId = uuidv4();
-
-    const { name, wineType, stock, ...rest } = validatedBody;
-
-    const newWine: Wine = {
-      PK: `WINE#${wineId}`,
-      SK: `META`,
-      entityType: "WINE",
-      GSI1PK: "WINE",
-      GSI1SK: `${name}#${wineId}`,
-      GSI2PK: `CATEGORY#${wineType}`,
-      GSI2SK: `${name}#${wineId}`,
-      isAvailable: stock > 0,
-      name,
-      wineType,
-      stock,
-      ...rest,
+    const newWine: WineProduct = {
+      PK: `${WINE_PREFIX}${productId}`,
+      SK: `${WINE_PREFIX}${productId}`,
+      wineId: productId,
+      productName: validatedBody.productName,
+      description: validatedBody.description,
+      categoryId,
+      type: "PRODUCT",
+      region: validatedBody.region,
+      country: validatedBody.country || "Unknown",
+      grapeVarietal: validatedBody.grapeVarietal || [],
+      vintage: validatedBody.vintage,
+      alcoholContent: validatedBody.alcoholContent || 0,
+      sizeMl: validatedBody.sizeMl || 750,
+      price: validatedBody.price,
+      stockQuantity: validatedBody.stockQuantity,
+      imageUrl: validatedBody.imageUrl,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      rating: validatedBody.rating || 0,
+      reviewCount: validatedBody.reviewCount || 0,
     };
 
     await doClient.send(
@@ -115,26 +142,31 @@ export const createWine: Handler = async (
 
     logger.info("Successfully created wine", {
       requestId: context.awsRequestId,
-      newWine: newWine,
+      productId,
     });
 
     return createSuccessResponse(201, {
-      message: `Wine created with ID: ${wineId}`,
-      data: newWine,
+      message: `Wine created with ID: ${productId}`,
     });
-  } catch (error: any) {
+  } catch (error) {
     if (error instanceof z.ZodError) {
+      const errorMessage = error.errors
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join(", ");
       logger.warn("Validation error", {
         requestId: context.awsRequestId,
-        error: error.errors.map((e) => e.message).join(", "),
+        error: errorMessage,
       });
-      return createBadRequestResponse(
-        error.errors.map((e) => e.message).join(", ")
-      );
+      return createBadRequestResponse(errorMessage);
     }
-    logger.error(`Error creating wine: ${JSON.stringify(error, null, 2)}`, {
+
+    logger.error("Error creating wine", {
       requestId: context.awsRequestId,
+      error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
     });
-    return createServerErrorResponse(`Error creating wine: ${error.message}`);
+    return createServerErrorResponse(
+      "Error creating wine. Please try again later."
+    );
   }
 };
