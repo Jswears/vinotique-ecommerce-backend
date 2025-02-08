@@ -7,8 +7,10 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:createWine": "esbuild src/functions/Wine/createWine/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/createWine/index.js",
     "build:getWines": "esbuild src/functions/Wine/getWines/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/getWines/index.js",
+    "build:getWineById": "esbuild src/functions/Wine/getWineById/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/getWineById/index.js",
     "postbuild:createWine": "cd dist/createWine && zip -r index.zip index.js* && mv index.zip ../createWine.zip",
-    "postbuild:getWines": "cd dist/getWines && zip -r index.zip index.js* && mv index.zip ../getWines.zip"
+    "postbuild:getWines": "cd dist/getWines && zip -r index.zip index.js* && mv index.zip ../getWines.zip",
+    "postbuild:getWineById": "cd dist/getWineById && zip -r index.zip index.js* && mv index.zip ../getWineById.zip"
   },
   "keywords": [],
   "author": "",
