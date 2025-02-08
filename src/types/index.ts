@@ -9,25 +9,25 @@ enum WineTypeEnum {
   Fortified = "Fortified",
 }
 
-export interface Wine {
+interface WineProduct {
   PK: string;
   SK: string;
-  entityType: string;
-  GSI1PK: string;
-  GSI1SK: string;
-  GSI2PK: string;
-  GSI2SK: string;
-  isAvailable: boolean;
-  name: string;
+  wineId: string;
+  type: string;
+  productName: string;
   description: string;
-  price: number;
-  wineType: WineTypeEnum;
+  categoryId: string;
   region: string;
-  producer: string;
-  year: number;
-  stock: number;
-  sku: string;
+  country: string;
+  grapeVarietal: string[];
+  vintage: number;
+  alcoholContent: number;
+  sizeMl: number;
+  price: number;
+  stockQuantity: number;
   imageUrl: string;
-  createdAt?: string;
-  isFeatured: boolean;
+  createdAt: string;
+  updatedAt: string;
+  rating: number;
+  reviewCount: number;
 }
