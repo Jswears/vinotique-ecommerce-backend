@@ -93,7 +93,7 @@ export const createWine: Handler = async (
 
     const newWine: Wine = {
       PK: `WINE#${wineId}`,
-      SK: `WINE#${wineId}`,
+      SK: `META`,
       entityType: "WINE",
       GSI1PK: "WINE",
       GSI1SK: `${name}#${wineId}`,
