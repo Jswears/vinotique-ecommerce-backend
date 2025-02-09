@@ -27,10 +27,11 @@ export interface WineProduct {
   updatedAt: string;
 }
 
-export interface WineProductInput {
+export type Wine = {
+  wineId: string;
   productName: string;
   description: string;
-  category: WineCategoryEnum;
+  category: string;
   region: string;
   country: string;
   grapeVarietal: string[];
@@ -38,9 +39,14 @@ export interface WineProductInput {
   alcoholContent: number;
   sizeMl: number;
   price: number;
-  stockQuantity: number;
+  isInStock: boolean;
+  isFeatured: boolean;
   imageUrl: string;
-}
+  rating: number;
+  reviewCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export enum WineCategoryEnum {
   Red = "Red",
@@ -57,7 +63,7 @@ export interface QueryParams {
 }
 
 export interface WineResponse {
-  data: WineProductInput[];
+  data: Wine[];
   totalCount: number;
   nextToken: string | null;
 }
