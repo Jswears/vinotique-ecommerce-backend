@@ -44,6 +44,8 @@ const WineSchema = z.object({
   stockQuantity: z
     .number()
     .min(0, "Stock quantity must be greater than or equal to 0"),
+  isInStock: z.boolean().optional().default(true),
+  isFeatured: z.boolean().optional().default(false),
   imageUrl: z.string().refine((url) => isValidUrl(url), {
     message: "Invalid image URL",
   }),
@@ -128,6 +130,8 @@ export const createWine: Handler = async (
       sizeMl: validatedBody.sizeMl || 750,
       price: validatedBody.price,
       stockQuantity: validatedBody.stockQuantity,
+      isInStock: validatedBody.stockQuantity > 0 ? true : false,
+      isFeatured: validatedBody.isFeatured,
       imageUrl: validatedBody.imageUrl,
       rating: validatedBody.rating || 0,
       reviewCount: validatedBody.reviewCount || 0,
