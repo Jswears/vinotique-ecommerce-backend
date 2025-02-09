@@ -1,22 +1,18 @@
 // Core types
 
-enum WineTypeEnum {
-  Red = "Red",
-  White = "White",
-  Rose = "Rose",
-  Sparkling = "Sparkling",
-  Dessert = "Dessert",
-  Fortified = "Fortified",
-}
-
-interface WineProduct {
+// Type definitions
+export interface WineProduct {
   PK: string;
   SK: string;
+  GSI1PK: string;
+  GSI1SK: string;
+  GSI2PK: string;
+  GSI2SK: string;
+  entityType: string;
   wineId: string;
-  type: string;
   productName: string;
   description: string;
-  categoryId: string;
+  category: WineCategoryEnum;
   region: string;
   country: string;
   grapeVarietal: string[];
@@ -26,8 +22,17 @@ interface WineProduct {
   price: number;
   stockQuantity: number;
   imageUrl: string;
-  createdAt: string;
-  updatedAt: string;
   rating: number;
   reviewCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export enum WineCategoryEnum {
+  Red = "Red",
+  White = "White",
+  Rose = "Rose",
+  Sparkling = "Sparkling",
+  Dessert = "Dessert",
+  Fortified = "Fortified",
 }
