@@ -18,6 +18,8 @@ export interface WineProduct {
   sizeMl: number;
   price: number;
   stockQuantity: number;
+  isInStock: boolean;
+  isFeatured: boolean;
   imageUrl: string;
   rating: number;
   reviewCount: number;
