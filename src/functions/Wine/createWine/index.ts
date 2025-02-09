@@ -10,6 +10,7 @@ import {
 import Logger from "../../../utils/logger";
 import { isValidUrl } from "../../../utils/validators/urlValidator";
 import { z } from "zod";
+import { WineCategoryEnum, WineProduct } from "../../../types";
 
 // Constants
 const TABLE_NAME = process.env.TABLE_NAME || "";
@@ -24,16 +25,6 @@ const doClient = DynamoDBDocumentClient.from(dynamoDbClient);
 // Validate environment variables
 if (!TABLE_NAME) {
   throw new Error("TABLE_NAME environment variable is not set");
-}
-
-// Zod schema
-enum WineCategoryEnum {
-  Red = "Red",
-  White = "White",
-  Rose = "Rose",
-  Sparkling = "Sparkling",
-  Dessert = "Dessert",
-  Fortified = "Fortified",
 }
 
 const WineSchema = z.object({
@@ -68,10 +59,10 @@ const WineSchema = z.object({
     .optional(),
 });
 
-const validateWineSchema = (body: any) => {
+const validateWineSchema = (body: unknown): z.infer<typeof WineSchema> => {
   try {
     return WineSchema.parse(body);
-  } catch (error: any) {
+  } catch (error) {
     if (error instanceof z.ZodError) {
       throw new Error(
         `Validation error: ${error.errors.map((e) => e.message).join(", ")}`
@@ -111,13 +102,24 @@ export const createWine: Handler = async (
     const categoryId = `${CATEGORY_PREFIX}${validatedBody.category}`;
 
     const newWine: WineProduct = {
+      // ---- Primary Keys ----
       PK: `${WINE_PREFIX}${productId}`,
-      SK: `${WINE_PREFIX}${productId}`,
+      SK: `META`,
+
+      // ---- GSI1 ----
+      GSI1PK: `WINE`,
+      GSI1SK: `${validatedBody.productName}#${productId}`,
+
+      // ---- GSI2 ----
+      GSI2PK: categoryId,
+      GSI2SK: `${validatedBody.productName}#${productId}`,
+
+      // ---- Product details ----
+      entityType: "PRODUCT",
       wineId: productId,
       productName: validatedBody.productName,
       description: validatedBody.description,
-      categoryId,
-      type: "PRODUCT",
+      category: validatedBody.category,
       region: validatedBody.region,
       country: validatedBody.country || "Unknown",
       grapeVarietal: validatedBody.grapeVarietal || [],
@@ -127,10 +129,12 @@ export const createWine: Handler = async (
       price: validatedBody.price,
       stockQuantity: validatedBody.stockQuantity,
       imageUrl: validatedBody.imageUrl,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
       rating: validatedBody.rating || 0,
       reviewCount: validatedBody.reviewCount || 0,
+
+      // ---- Timestamps ----
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     await doClient.send(
