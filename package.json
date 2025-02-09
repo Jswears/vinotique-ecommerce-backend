@@ -11,12 +11,14 @@
     "build:getWinesByCategory": "esbuild src/functions/Wine/getWinesByCategory/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/getWinesByCategory/index.js",
     "build:updateWine": "esbuild src/functions/Wine/updateWine/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/updateWine/index.js",
     "build:deleteWine": "esbuild src/functions/Wine/deleteWine/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/deleteWine/index.js",
+    "build:searchWines": "esbuild src/functions/Wine/searchWines/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/searchWines/index.js",
     "postbuild:createWine": "cd dist/createWine && zip -r index.zip index.js* && mv index.zip ../createWine.zip",
     "postbuild:getWines": "cd dist/getWines && zip -r index.zip index.js* && mv index.zip ../getWines.zip",
     "postbuild:getWineById": "cd dist/getWineById && zip -r index.zip index.js* && mv index.zip ../getWineById.zip",
     "postbuild:getWinesByCategory": "cd dist/getWinesByCategory && zip -r index.zip index.js* && mv index.zip ../getWinesByCategory.zip",
     "postbuild:updateWine": "cd dist/updateWine && zip -r index.zip index.js* && mv index.zip ../updateWine.zip",
-    "postbuild:deleteWine": "cd dist/deleteWine && zip -r index.zip index.js* && mv index.zip ../deleteWine.zip"
+    "postbuild:deleteWine": "cd dist/deleteWine && zip -r index.zip index.js* && mv index.zip ../deleteWine.zip",
+    "postbuild:searchWines": "cd dist/searchWines && zip -r index.zip index.js* && mv index.zip ../searchWines.zip"
   },
   "keywords": [],
   "author": "",
