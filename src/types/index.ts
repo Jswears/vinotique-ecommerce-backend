@@ -1,6 +1,3 @@
-// Core types
-
-// Type definitions
 export interface WineProduct {
   PK: string;
   SK: string;
@@ -28,6 +25,21 @@ export interface WineProduct {
   updatedAt: string;
 }
 
+export interface WineProductInput {
+  productName: string;
+  description: string;
+  category: WineCategoryEnum;
+  region: string;
+  country: string;
+  grapeVarietal: string[];
+  vintage: number;
+  alcoholContent: number;
+  sizeMl: number;
+  price: number;
+  stockQuantity: number;
+  imageUrl: string;
+}
+
 export enum WineCategoryEnum {
   Red = "Red",
   White = "White",
@@ -35,4 +47,15 @@ export enum WineCategoryEnum {
   Sparkling = "Sparkling",
   Dessert = "Dessert",
   Fortified = "Fortified",
+}
+
+export interface QueryParams {
+  pageSize?: string;
+  nextToken?: string;
+}
+
+export interface WineResponse {
+  data: WineProductInput[];
+  totalCount: number;
+  nextToken: string | null;
 }

@@ -6,22 +6,23 @@ import {
   createErrorResponse,
   createSuccessResponse,
 } from "../../../utils/returnResponse";
+import { QueryParams, WineResponse } from "../../../types";
 
-// ### Constants ###
+// ---- Constants ----
 const TABLE_NAME = process.env.TABLE_NAME || "";
 const defaultPageSize = 10;
 const logger = new Logger("getWines");
 
-// ### DynamoDB client ###
+// ---- DynamoDB client ----
 const client = new DynamoDBClient({});
 const doClient = DynamoDBDocumentClient.from(client);
 
-// ### Validate environment variables ###
+// ---- Validate environment variables ----
 if (!TABLE_NAME) {
   throw new Error("TABLE_NAME environment variable is not set");
 }
 
-// ### Handler ###
+// ---- Handler ----
 export const getWines: Handler = async (
   event: APIGatewayEvent,
   context: Context
@@ -29,18 +30,29 @@ export const getWines: Handler = async (
   logger.info("Getting wines", { event, context });
 
   try {
-    // Get query parameters
-    const queryParams = event.queryStringParameters;
+    // Get and validate query parameters
+    const queryParams = event.queryStringParameters as QueryParams;
     logger.info("Query parameters", { queryParams });
-    let limit;
+
+    let limit = defaultPageSize;
     let startKey;
 
-    if (queryParams) {
-      const { pageSize, nextToken } = queryParams;
-      limit = pageSize ? parseInt(pageSize, 10) : defaultPageSize;
-      startKey = nextToken
-        ? JSON.parse(Buffer.from(nextToken, "base64").toString("utf-8"))
-        : undefined;
+    if (queryParams?.pageSize) {
+      const parsedPageSize = parseInt(queryParams.pageSize, 10);
+      if (isNaN(parsedPageSize) || parsedPageSize < 1) {
+        return createErrorResponse(400, "Invalid pageSize parameter");
+      }
+      limit = parsedPageSize;
+    }
+
+    if (queryParams?.nextToken) {
+      try {
+        startKey = JSON.parse(
+          Buffer.from(queryParams.nextToken, "base64").toString("utf-8")
+        );
+      } catch (error) {
+        return createErrorResponse(400, "Invalid nextToken parameter");
+      }
     }
 
     // Query the database to get all wines with querycommand
@@ -53,57 +65,56 @@ export const getWines: Handler = async (
       },
       Limit: limit,
       ProjectionExpression:
-        "#name, #wineId, #description, #price, #wineType, #region, #producer, #year, #stock, #sku, #imageUrl, #createdAt, #isFeatured, #isAvailable",
+        "#wineId, #productName, #description, #category, #region, #country, #grapeVarietal, #vintage, #alcoholContent, #sizeMl, #price, #isInStock, #isFeatured, #imageUrl, #rating, #reviewCount, #createdAt, #updatedAt",
       ExpressionAttributeNames: {
         "#wineId": "wineId",
-        "#name": "name",
+        "#productName": "productName",
         "#description": "description",
-        "#price": "price",
-        "#wineType": "wineType",
+        "#category": "category",
         "#region": "region",
-        "#producer": "producer",
-        "#year": "year",
-        "#stock": "stock",
-        "#sku": "sku",
-        "#imageUrl": "imageUrl",
-        "#createdAt": "createdAt",
+        "#country": "country",
+        "#grapeVarietal": "grapeVarietal",
+        "#vintage": "vintage",
+        "#alcoholContent": "alcoholContent",
+        "#sizeMl": "sizeMl",
+        "#price": "price",
+        "#isInStock": "isInStock",
         "#isFeatured": "isFeatured",
-        "#isAvailable": "isAvailable",
+        "#imageUrl": "imageUrl",
+        "#rating": "rating",
+        "#reviewCount": "reviewCount",
+        "#createdAt": "createdAt",
+        "#updatedAt": "updatedAt",
       },
       ExclusiveStartKey: startKey,
     };
     const result = await doClient.send(new QueryCommand(params));
-    const totalCountResult = result.Count || 0;
 
     if (!result.Items || result.Items.length === 0) {
-      logger.warn("No wines found");
-      return createErrorResponse(404, "No wines found");
+      return createSuccessResponse(200, {
+        data: [],
+        totalCount: 0,
+        nextToken: null,
+      });
     }
 
-    // Encode the last evaluated key to be used as nextToken
-    let nextTokenValue = null;
-    if (result.LastEvaluatedKey) {
-      nextTokenValue = Buffer.from(
-        JSON.stringify(result.LastEvaluatedKey)
-      ).toString("base64");
-    }
+    const nextTokenValue = result.LastEvaluatedKey
+      ? Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString("base64")
+      : null;
 
-    // Return the wines
-    logger.info("Successfully got wines", {
-      wines: result.Items,
-      count: totalCountResult,
-    });
-
-    return createSuccessResponse(200, {
-      wines: result.Items,
-      totalCount: totalCountResult,
+    const response: WineResponse = {
+      data: result.Items as WineResponse["data"],
+      totalCount: result.Count || 0,
       nextToken: nextTokenValue,
-    });
-  } catch (error: any) {
-    logger.error("Error getting wines", { error });
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Error getting wines" }),
     };
+
+    logger.info("Successfully got wines", {
+      count: response.totalCount,
+    });
+
+    return createSuccessResponse(200, response);
+  } catch (error) {
+    logger.error("Error getting wines", { error });
+    return createErrorResponse(500, "An error occurred while fetching wines");
   }
 };
