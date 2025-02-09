@@ -62,8 +62,12 @@ export interface QueryParams {
   nextToken?: string;
 }
 
+export interface CategoryPathParams {
+  category?: string;
+}
+
 export interface WineResponse {
-  data: Wine[];
+  wines: Wine[];
   totalCount: number;
   nextToken: string | null;
 }

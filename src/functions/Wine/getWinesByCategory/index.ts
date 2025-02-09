@@ -1,21 +1,21 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb";
-import { APIGatewayEvent, Context, Handler } from "aws-lambda";
 import Logger from "../../../utils/logger";
 import {
   createErrorResponse,
   createSuccessResponse,
 } from "../../../utils/returnResponse";
-import { QueryParams, WineResponse } from "../../../types";
+import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { APIGatewayEvent, Context, Handler } from "aws-lambda";
+import { CategoryPathParams, QueryParams, WineResponse } from "../../../types";
 
 // ---- Constants ----
 const TABLE_NAME = process.env.TABLE_NAME || "";
+const logger = new Logger("getWineByCategory");
 const defaultPageSize = 10;
-const logger = new Logger("getWines");
 
 // ---- DynamoDB client ----
-const client = new DynamoDBClient({});
-const doClient = DynamoDBDocumentClient.from(client);
+const dynamoDbClient = new DynamoDBClient({});
+const doClient = DynamoDBDocumentClient.from(dynamoDbClient);
 
 // ---- Validate environment variables ----
 if (!TABLE_NAME) {
@@ -23,32 +23,43 @@ if (!TABLE_NAME) {
 }
 
 // ---- Handler ----
-export const getWines: Handler = async (
+export const getWinesByCategory: Handler = async (
   event: APIGatewayEvent,
   context: Context
 ) => {
-  logger.info("Getting wines", { event, context });
+  logger.info("Getting wines by category", { event });
 
   try {
-    // Get and validate query parameters
-    const queryParams = event.queryStringParameters as QueryParams;
-    logger.info("Query parameters", { queryParams });
+    // Get category from path parameters
+    const { category } = event.pathParameters || ({} as CategoryPathParams);
+    logger.info("Getting wines by category", { category });
+
+    const { pageSize, nextToken } =
+      event.queryStringParameters || ({} as QueryParams);
+    logger.info("Query parameters", { pageSize, nextToken });
 
     let limit = defaultPageSize;
     let startKey;
 
-    if (queryParams?.pageSize) {
-      const parsedPageSize = parseInt(queryParams.pageSize, 10);
+    // Validate category
+    if (!category) {
+      return createErrorResponse(400, "Category is required");
+    }
+
+    // Validate page size
+    if (pageSize) {
+      const parsedPageSize = parseInt(pageSize, 10);
       if (isNaN(parsedPageSize) || parsedPageSize < 1) {
         return createErrorResponse(400, "Invalid pageSize parameter");
       }
       limit = parsedPageSize;
     }
 
-    if (queryParams?.nextToken) {
+    // Validate nextToken
+    if (nextToken) {
       try {
         startKey = JSON.parse(
-          Buffer.from(queryParams.nextToken, "base64").toString("utf-8")
+          Buffer.from(nextToken, "base64").toString("utf-8")
         );
       } catch (error) {
         return createErrorResponse(400, "Invalid nextToken parameter");
@@ -76,13 +87,13 @@ export const getWines: Handler = async (
       "updatedAt",
     ];
 
-    // Query the database to get all wines with querycommand
+    // Query DynamoDB
     const params = {
       TableName: TABLE_NAME,
-      IndexName: "GSI1",
-      KeyConditionExpression: "GSI1PK = :winePartition",
+      IndexName: "GSI2",
+      KeyConditionExpression: "GSI2PK = :category",
       ExpressionAttributeValues: {
-        ":winePartition": "WINE",
+        ":category": `CATEGORY#${category}`,
       },
       ProjectionExpression: projectionAttributes
         .map((attr) => `#${attr}`)
@@ -100,17 +111,21 @@ export const getWines: Handler = async (
 
     const result = await doClient.send(new QueryCommand(params));
 
+    logger.info("Query result", { result });
     if (!result.Items || result.Items.length === 0) {
+      logger.info(`No wines found for category: ${category}`);
       return createSuccessResponse(200, {
         wines: [],
-        totalCount: 0,
         nextToken: null,
       });
     }
 
-    const nextTokenValue = result.LastEvaluatedKey
-      ? Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString("base64")
-      : null;
+    let nextTokenValue = null;
+    if (result.LastEvaluatedKey) {
+      nextTokenValue = Buffer.from(
+        JSON.stringify(result.LastEvaluatedKey)
+      ).toString("base64");
+    }
 
     const response: WineResponse = {
       wines: result.Items as WineResponse["wines"],
@@ -118,13 +133,14 @@ export const getWines: Handler = async (
       nextToken: nextTokenValue,
     };
 
-    logger.info("Successfully got wines", {
-      count: response.totalCount,
-    });
+    logger.info(`Found ${result.Items.length} wines for category: ${category}`);
 
     return createSuccessResponse(200, response);
   } catch (error) {
-    logger.error("Error getting wines", { error });
-    return createErrorResponse(500, "An error occurred while fetching wines");
+    logger.error("Error getting wines by category", {
+      error,
+      category: event.pathParameters?.category,
+    });
+    return createErrorResponse(500, "Internal server error");
   }
 };

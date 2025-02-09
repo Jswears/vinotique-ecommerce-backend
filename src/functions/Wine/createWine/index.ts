@@ -12,17 +12,17 @@ import { isValidUrl } from "../../../utils/validators/urlValidator";
 import { z } from "zod";
 import { WineCategoryEnum, WineProduct } from "../../../types";
 
-// Constants
+// ---- Constants ----
 const TABLE_NAME = process.env.TABLE_NAME || "";
 const WINE_PREFIX = "WINE#";
 const CATEGORY_PREFIX = "CATEGORY#";
 const logger = new Logger("createWine");
 
-// DynamoDB client
+// ---- DynamoDB client ----
 const dynamoDbClient = new DynamoDBClient({});
 const doClient = DynamoDBDocumentClient.from(dynamoDbClient);
 
-// Validate environment variables
+// ---- Validate environment variables ----
 if (!TABLE_NAME) {
   throw new Error("TABLE_NAME environment variable is not set");
 }
