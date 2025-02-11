@@ -10,8 +10,6 @@ import { WineResponse } from "../../../types";
 
 // ---- Constants ----
 const TABLE_NAME = process.env.TABLE_NAME || "";
-const WINE_PREFIX = "WINE#";
-const WINE_SK = "META";
 const logger = new Logger("searchWines");
 
 // ---- DynamoDB client ----
