@@ -12,27 +12,7 @@ import {
   createSuccessResponse,
 } from "../../../utils/returnResponse";
 import { v4 } from "uuid";
-// ---- Types ----
-interface CartItem {
-  productId: string;
-  quantity: number;
-  addedAt: string;
-}
-
-interface LambdaResponse {
-  statusCode: number;
-  body: string;
-}
-
-interface CartDocument {
-  PK: string;
-  SK: string;
-  cartId: string;
-  items: CartItem[];
-  createdAt: string;
-  updatedAt: string;
-  expiresAt?: number; // Renamed TTL attribute
-}
+import { CartDocument } from "../../../types";
 
 // ---- Constants ----
 const TABLE_NAME = process.env.TABLE_NAME || "";
@@ -76,7 +56,7 @@ async function getOrCreateCart(userId: string): Promise<CartDocument> {
     PK: `${USER_ID_PREFIX}${userId}`,
     SK: `${CART_PREFIX}${cartId}`,
     cartId,
-    items: [],
+    cartItems: [],
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
     expiresAt, // Set expiration on creation
@@ -107,28 +87,28 @@ async function updateCart(
   const cart = await getOrCreateCart(userId);
 
   const now = new Date();
-  let updatedItems = cart.items;
+  let updatedCartItems = cart.cartItems;
   if (action === "clearCart") {
-    updatedItems = [];
+    updatedCartItems = [];
   } else {
-    const existingItemIndex = updatedItems.findIndex(
+    const existingItemIndex = updatedCartItems.findIndex(
       (item) => item.productId === productId
     );
 
     if (existingItemIndex !== -1) {
       if (action === "add") {
-        updatedItems[existingItemIndex].quantity += newQuantity;
+        updatedCartItems[existingItemIndex].quantity += newQuantity;
       } else {
-        updatedItems[existingItemIndex].quantity -= newQuantity;
+        updatedCartItems[existingItemIndex].quantity -= newQuantity;
       }
 
-      if (updatedItems[existingItemIndex].quantity <= 0) {
-        updatedItems = updatedItems.filter(
+      if (updatedCartItems[existingItemIndex].quantity <= 0) {
+        updatedCartItems = updatedCartItems.filter(
           (item) => item.productId !== productId
         );
       }
     } else {
-      updatedItems.push({
+      updatedCartItems.push({
         productId,
         quantity: newQuantity,
         addedAt: now.toISOString(),
@@ -136,7 +116,7 @@ async function updateCart(
     }
   }
 
-  if (updatedItems.length === 0) {
+  if (updatedCartItems.length === 0) {
     await deleteCart(cart);
     return "Cart deleted successfully";
   }
@@ -151,31 +131,31 @@ async function updateCart(
         SK: cart.SK,
       },
       UpdateExpression:
-        "SET #items = :items, updatedAt = :updatedAt, expiresAt = :expiresAt",
+        "SET #cartItems = :cartItems, updatedAt = :updatedAt, expiresAt = :expiresAt",
       ExpressionAttributeNames: {
-        "#items": "items",
+        "#cartItems": "cartItems",
       },
       ExpressionAttributeValues: {
-        ":items": updatedItems,
+        ":cartItems": updatedCartItems,
         ":updatedAt": now.toISOString(),
         ":expiresAt": expiresAt,
       },
       ReturnValues: ReturnValue.ALL_NEW,
     })
   );
-  return `Cart updated successfully with ${newQuantity} items and action ${action}`;
+  return `Cart updated successfully with ${newQuantity} cartItems and action ${action}`;
 }
 
 // ---- Handler ----
 export const handler: Handler = async (event: APIGatewayEvent) => {
   logger.info("Received event", event);
   try {
-    const { items } = JSON.parse(event.body || "{}");
+    const { cartItems } = JSON.parse(event.body || "{}");
 
-    logger.info("Processing items", items);
+    logger.info("Processing cartItems", cartItems);
 
     const messages: string[] = [];
-    for (const item of items) {
+    for (const item of cartItems) {
       const { userId, productId, quantity, action } = item;
 
       if (!VALID_ACTIONS.includes(action)) {
