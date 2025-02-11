@@ -75,3 +75,20 @@ export interface WineResponse {
   totalCount: number;
   nextToken: string | null;
 }
+
+// ---- Cart Types ----
+export interface CartItem {
+  productId: string;
+  quantity: number;
+  addedAt: string;
+}
+
+export interface CartDocument {
+  PK: string;
+  SK: string;
+  cartId: string;
+  cartItems: CartItem[];
+  createdAt: string;
+  updatedAt: string;
+  expiresAt?: number;
+}
