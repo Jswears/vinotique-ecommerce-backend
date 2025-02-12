@@ -46,6 +46,7 @@ export const getWineById: Handler = async (
     const projectionAttributes = [
       "wineId",
       "productName",
+      "producer",
       "description",
       "category",
       "region",
