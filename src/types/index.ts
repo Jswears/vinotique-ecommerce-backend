@@ -1,3 +1,5 @@
+// ---- Wine Types ----
+
 export interface WineProduct {
   PK: string;
   SK: string;
