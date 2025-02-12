@@ -13,6 +13,7 @@
     "build:deleteWine": "esbuild src/functions/Wine/deleteWine/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/deleteWine/index.js",
     "build:searchWines": "esbuild src/functions/Wine/searchWines/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/searchWines/index.js",
     "build:updateCart": "esbuild src/functions/Cart/updateCart/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/updateCart/index.js",
+    "build:getCart": "esbuild src/functions/Cart/getCart/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/getCart/index.js",
     "postbuild:createWine": "cd dist/createWine && zip -r index.zip index.js* && mv index.zip ../createWine.zip",
     "postbuild:getWines": "cd dist/getWines && zip -r index.zip index.js* && mv index.zip ../getWines.zip",
     "postbuild:getWineById": "cd dist/getWineById && zip -r index.zip index.js* && mv index.zip ../getWineById.zip",
@@ -20,7 +21,8 @@
     "postbuild:updateWine": "cd dist/updateWine && zip -r index.zip index.js* && mv index.zip ../updateWine.zip",
     "postbuild:deleteWine": "cd dist/deleteWine && zip -r index.zip index.js* && mv index.zip ../deleteWine.zip",
     "postbuild:searchWines": "cd dist/searchWines && zip -r index.zip index.js* && mv index.zip ../searchWines.zip",
-    "postbuild:updateCart": "cd dist/updateCart && zip -r index.zip index.js* && mv index.zip ../updateCart.zip"
+    "postbuild:updateCart": "cd dist/updateCart && zip -r index.zip index.js* && mv index.zip ../updateCart.zip",
+    "postbuild:getCart": "cd dist/getCart && zip -r index.zip index.js* && mv index.zip ../getCart.zip"
   },
   "keywords": [],
   "author": "",

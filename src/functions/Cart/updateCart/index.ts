@@ -147,6 +147,7 @@ async function updateCart(
 }
 
 // ---- Handler ----
+//TODO: Change to get userId from pathParameters and not from body
 export const handler: Handler = async (event: APIGatewayEvent) => {
   logger.info("Received event", event);
   try {
