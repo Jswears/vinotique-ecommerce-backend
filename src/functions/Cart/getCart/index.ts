@@ -63,12 +63,12 @@ export const handler: Handler = async (event: APIGatewayEvent) => {
 
     logger.info(`Found ${cartItems.length} items in cart for user ${userId}`);
 
-    // Extract productIds for details lookup
-    const productIds = cartItems.map((item) => item.productId);
+    // Extract wineIds for details lookup
+    const wineIds = cartItems.map((item) => item.wineId);
 
     // Prepare DynamoDB keys for product details
-    const productKeys = productIds.map((productId) => ({
-      PK: `WINE#${productId}`,
+    const productKeys = wineIds.map((wineId) => ({
+      PK: `WINE#${wineId}`,
       SK: "META",
     }));
 
@@ -104,7 +104,7 @@ export const handler: Handler = async (event: APIGatewayEvent) => {
     const productMap = new Map(allProducts.map((p) => [p.wineId, p]));
 
     const enrichedCart = cartItems.map((item) => {
-      const product = productMap.get(item.productId);
+      const product = productMap.get(item.wineId);
       return {
         ...item,
         productName: product?.productName || "Unknown",

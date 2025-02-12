@@ -80,7 +80,7 @@ async function deleteCart(cart: CartDocument): Promise<void> {
 
 async function updateCart(
   userId: string,
-  productId: string,
+  wineId: string,
   newQuantity: number,
   action: "add" | "remove" | "clearCart"
 ): Promise<string> {
@@ -92,7 +92,7 @@ async function updateCart(
     updatedCartItems = [];
   } else {
     const existingItemIndex = updatedCartItems.findIndex(
-      (item) => item.productId === productId
+      (item) => item.wineId === wineId
     );
 
     if (existingItemIndex !== -1) {
@@ -104,12 +104,12 @@ async function updateCart(
 
       if (updatedCartItems[existingItemIndex].quantity <= 0) {
         updatedCartItems = updatedCartItems.filter(
-          (item) => item.productId !== productId
+          (item) => item.wineId !== wineId
         );
       }
     } else {
       updatedCartItems.push({
-        productId,
+        wineId,
         quantity: newQuantity,
         addedAt: now.toISOString(),
       });
@@ -157,13 +157,13 @@ export const handler: Handler = async (event: APIGatewayEvent) => {
 
     const messages: string[] = [];
     for (const item of cartItems) {
-      const { userId, productId, quantity, action } = item;
+      const { userId, wineId, quantity, action } = item;
 
       if (!VALID_ACTIONS.includes(action)) {
         return createErrorResponse(400, "Invalid action");
       }
 
-      const message = await updateCart(userId, productId, quantity, action);
+      const message = await updateCart(userId, wineId, quantity, action);
       messages.push(message);
     }
 
