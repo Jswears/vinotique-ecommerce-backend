@@ -80,7 +80,7 @@ export interface WineResponse {
 
 // ---- Cart Types ----
 export interface CartItem {
-  productId: string;
+  wineId: string;
   quantity: number;
   addedAt: string;
 }
