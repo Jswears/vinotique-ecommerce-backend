@@ -10,6 +10,7 @@ export interface WineProduct {
   entityType: string;
   wineId: string;
   productName: string;
+  producer: string;
   description: string;
   category: WineCategoryEnum;
   region: string;

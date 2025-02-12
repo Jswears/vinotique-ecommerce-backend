@@ -29,6 +29,7 @@ if (!TABLE_NAME) {
 
 const WineSchema = z.object({
   productName: z.string().min(1, "Name is required"),
+  producer: z.string().min(1, "Producer is required"),
   description: z.string().min(1, "Description is required"),
   category: z.nativeEnum(WineCategoryEnum),
   region: z.string().min(1, "Region is required"),
@@ -120,6 +121,7 @@ export const createWine: Handler = async (
       entityType: "PRODUCT",
       wineId: productId,
       productName: validatedBody.productName,
+      producer: validatedBody.producer,
       description: validatedBody.description,
       category: validatedBody.category,
       region: validatedBody.region,
