@@ -20,7 +20,7 @@ const CART_TTL_SECONDS = Number(process.env.CART_TTL_SECONDS) || 3600;
 const logger = new Logger("updateCart");
 const USER_ID_PREFIX = "USER#";
 const CART_PREFIX = "CART#";
-const VALID_ACTIONS = ["add", "remove", "clearCart"];
+const VALID_ACTIONS = ["add", "remove", "clear"];
 
 // ---- DynamoDB client ----
 const dynamoDbClient = new DynamoDBClient({});
@@ -82,13 +82,13 @@ async function updateCart(
   userId: string,
   wineId: string,
   newQuantity: number,
-  action: "add" | "remove" | "clearCart"
+  action: "add" | "remove" | "clear"
 ): Promise<string> {
   const cart = await getOrCreateCart(userId);
 
   const now = new Date();
   let updatedCartItems = cart.cartItems;
-  if (action === "clearCart") {
+  if (action === "clear") {
     updatedCartItems = [];
   } else {
     const existingItemIndex = updatedCartItems.findIndex(
@@ -147,17 +147,23 @@ async function updateCart(
 }
 
 // ---- Handler ----
-//TODO: Change to get userId from pathParameters and not from body
 export const handler: Handler = async (event: APIGatewayEvent) => {
   logger.info("Received event", event);
+  logger.info("pathParameters", event.pathParameters);
+
   try {
     const { cartItems } = JSON.parse(event.body || "{}");
+    const { userId } = event.pathParameters || {};
 
+    if (!userId) {
+      logger.error("userId is required");
+      return createErrorResponse(400, "userId is required");
+    }
     logger.info("Processing cartItems", cartItems);
 
     const messages: string[] = [];
     for (const item of cartItems) {
-      const { userId, wineId, quantity, action } = item;
+      const { wineId, quantity, action } = item;
 
       if (!VALID_ACTIONS.includes(action)) {
         return createErrorResponse(400, "Invalid action");
