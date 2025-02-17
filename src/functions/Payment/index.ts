@@ -1,5 +1,3 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import Logger from "../../utils/logger";
 import { APIGatewayEvent, Handler } from "aws-lambda";
 import {
@@ -18,10 +16,6 @@ if (!STRIPE_SECRET_KEY) {
   throw new Error("STRIPE_SECRET_KEY environment variable is not set");
 }
 
-// ---- DynamoDB client ----
-const dynamoDbClient = new DynamoDBClient({});
-const doClient = DynamoDBDocumentClient.from(dynamoDbClient);
-
 // ---- Handler function ----
 export const handler: Handler = async (event: APIGatewayEvent) => {
   try {
@@ -34,10 +28,6 @@ export const handler: Handler = async (event: APIGatewayEvent) => {
 
     // Process payment here
     const { cartItems, successUrl, cancelUrl, metadata } = body;
-    const metadataWithCartItems = {
-      ...metadata,
-      cartItems: JSON.stringify(cartItems),
-    };
 
     const lineItems = cartItems.map((item: any) => ({
       price_data: {
@@ -46,7 +36,7 @@ export const handler: Handler = async (event: APIGatewayEvent) => {
           name: item.productName,
           images: [item.imageUrl],
         },
-        unit_amount: item.price * 100,
+        unit_amount: item.price,
       },
       quantity: item.quantity,
     }));
@@ -65,7 +55,7 @@ export const handler: Handler = async (event: APIGatewayEvent) => {
       shipping_address_collection: {
         allowed_countries: ["US", "CA", "GB", "DE", "FR", "ES", "IT"],
       },
-      metadata: metadataWithCartItems,
+      metadata,
     });
 
     logger.info("Stripe session created", session);

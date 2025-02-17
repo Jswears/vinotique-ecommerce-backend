@@ -16,3 +16,7 @@ aws dynamodb create-table --table-name WineEcommerce --attribute-definitions Att
 }
 ]" --region eu-central-1
 ```
+
+## Create lambda
+
+command to create lamba function using this: REGION="eu-central-1" LAMBDA_RUNTIME="nodejs22.x" LAMBDA_ROLE_2="arn:aws:iam::891376911200:role/GetOrdersLambdaRole" name= getOrders zip= dist/getOrders.zip env variable=TABLE_NAME=WineEcommerce

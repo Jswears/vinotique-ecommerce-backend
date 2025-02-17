@@ -95,3 +95,11 @@ export interface CartDocument {
   updatedAt: string;
   expiresAt?: number;
 }
+
+// ---- Order Types ----
+
+export interface OrderResponse {
+  orders: Wine[];
+  totalCount: number;
+  nextToken: string | null;
+}
