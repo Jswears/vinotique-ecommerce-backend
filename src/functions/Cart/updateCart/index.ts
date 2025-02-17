@@ -54,7 +54,7 @@ async function getOrCreateCart(userId: string): Promise<CartDocument> {
   const expiresAt = Math.floor(now.getTime() / 1000) + CART_TTL_SECONDS;
   const newCart: CartDocument = {
     PK: `${USER_ID_PREFIX}${userId}`,
-    SK: `${CART_PREFIX}${cartId}`,
+    SK: `${CART_PREFIX}${userId}`,
     cartId,
     cartItems: [],
     createdAt: now.toISOString(),

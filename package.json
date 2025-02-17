@@ -16,6 +16,7 @@
     "build:getCart": "esbuild src/functions/Cart/getCart/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/getCart/index.js",
     "build:handleOrder": "esbuild src/functions/Order/handleOrder/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/handleOrder/index.js",
     "build:payment": "esbuild src/functions/Payment/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/payment/index.js",
+    "build:getOrders": "esbuild src/functions/Order/getOrders/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/getOrders/index.js",
     "postbuild:createWine": "cd dist/createWine && zip -r index.zip index.js* && mv index.zip ../createWine.zip",
     "postbuild:getWines": "cd dist/getWines && zip -r index.zip index.js* && mv index.zip ../getWines.zip",
     "postbuild:getWineById": "cd dist/getWineById && zip -r index.zip index.js* && mv index.zip ../getWineById.zip",
@@ -26,7 +27,8 @@
     "postbuild:updateCart": "cd dist/updateCart && zip -r index.zip index.js* && mv index.zip ../updateCart.zip",
     "postbuild:getCart": "cd dist/getCart && zip -r index.zip index.js* && mv index.zip ../getCart.zip",
     "postbuild:handleOrder": "cd dist/handleOrder && zip -r index.zip index.js* && mv index.zip ../handleOrder.zip",
-    "postbuild:payment": "cd dist/payment && zip -r index.zip index.js* && mv index.zip ../payment.zip"
+    "postbuild:payment": "cd dist/payment && zip -r index.zip index.js* && mv index.zip ../payment.zip",
+    "postbuild:getOrders": "cd dist/getOrders && zip -r index.zip index.js* && mv index.zip ../getOrders.zip"
   },
   "keywords": [],
   "author": "",
@@ -39,6 +41,7 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
+    "@aws-sdk/client-lambda": "^3.749.0",
     "stripe": "^17.6.0",
     "winston": "^3.17.0",
     "winston-cloudwatch": "^6.3.0",
