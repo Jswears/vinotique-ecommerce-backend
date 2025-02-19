@@ -75,6 +75,8 @@ export const getWines: Handler = async (
       "reviewCount",
       "createdAt",
       "updatedAt",
+      "stockQuantity",
+      "description",
     ];
 
     // Query the database to get all wines with querycommand

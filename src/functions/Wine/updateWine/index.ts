@@ -179,7 +179,6 @@ export const updateWine: Handler = async (
       { key: "imageUrl", alias: "#imageUrl", valueAlias: ":imageUrl" },
       { key: "rating", alias: "#rating", valueAlias: ":rating" },
       { key: "reviewCount", alias: "#reviewCount", valueAlias: ":reviewCount" },
-      { key: "updatedAt", alias: "#updatedAt", valueAlias: ":updatedAt" },
     ];
 
     for (const attr of attributes) {

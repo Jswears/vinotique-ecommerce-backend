@@ -117,7 +117,7 @@ const createOrder = async (order: any, cartItems: any) => {
       orderId,
       userId: order.metadata?.userId,
       status: order.status,
-      totalAmount: order.amount_total / 100,
+      totalAmount: order.amount_total,
       cartItems,
       shippingDetails: order.shipping_details,
       createdAt: now.toISOString(),
