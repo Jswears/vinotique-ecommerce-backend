@@ -1,56 +1,29 @@
-import {
-  LambdaClient,
-  InvokeCommand,
-  InvocationType,
-} from "@aws-sdk/client-lambda";
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import Logger from "./logger";
 
-const logger = new Logger("invokeLambda");
 const lambdaClient = new LambdaClient({});
+const logger = new Logger("LambdaInvoker");
 
-interface InvokeLambdaParams {
+export const invokeLambda = async ({
+  FunctionName,
+  Payload,
+}: {
   FunctionName: string;
-  Payload?: any;
-  PathParameters?: { [key: string]: string };
-}
-
-export const invokeLambda = async (params: InvokeLambdaParams) => {
-  const { FunctionName, Payload = {}, PathParameters = {} } = params;
-
-  const lambdaPayload = {
-    ...Payload,
-    pathParameters: PathParameters, // ensure pathParameters is correctly nested
-  };
-
-  const lambdaParams = {
-    FunctionName,
-    InvocationType: InvocationType.RequestResponse, // waits for response from the invoked function
-    Payload: JSON.stringify(lambdaPayload),
-  };
-
-  logger.info(
-    `Invoking lambda ${FunctionName} with payload: ${JSON.stringify(
-      lambdaPayload
-    )}`
-  );
-
-  const command = new InvokeCommand(lambdaParams);
-
+  Payload: Record<string, unknown>;
+}) => {
   try {
+    const command = new InvokeCommand({
+      FunctionName,
+      Payload: Buffer.from(JSON.stringify(Payload)),
+    });
+
     const response = await lambdaClient.send(command);
-    logger.info(`Lambda ${FunctionName} invoked successfully`);
-
-    if (response.FunctionError) {
-      const errorMessage = response.Payload
-        ? JSON.parse(new TextDecoder().decode(response.Payload)).errorMessage
-        : "Lambda invocation error";
-      logger.error(`Error invoking lambda ${FunctionName}: ${errorMessage}`);
-      throw new Error(errorMessage);
+    if (response.Payload) {
+      return JSON.parse(Buffer.from(response.Payload).toString());
     }
-
     return response;
-  } catch (error: any) {
-    logger.error(`Failed to invoke ${FunctionName}: ${error.message}`);
+  } catch (error) {
+    logger.error(`Error invoking Lambda function ${FunctionName}: ${error}`);
     throw error;
   }
 };

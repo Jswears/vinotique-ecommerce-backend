@@ -17,6 +17,7 @@
     "build:handleOrder": "esbuild src/functions/Order/handleOrder/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/handleOrder/index.js",
     "build:payment": "esbuild src/functions/Payment/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/payment/index.js",
     "build:getOrders": "esbuild src/functions/Order/getOrders/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/getOrders/index.js",
+    "build:updateStock": "esbuild src/functions/Wine/updateStock/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/updateStock/index.js",
     "postbuild:createWine": "cd dist/createWine && zip -r index.zip index.js* && mv index.zip ../createWine.zip",
     "postbuild:getWines": "cd dist/getWines && zip -r index.zip index.js* && mv index.zip ../getWines.zip",
     "postbuild:getWineById": "cd dist/getWineById && zip -r index.zip index.js* && mv index.zip ../getWineById.zip",
@@ -28,7 +29,8 @@
     "postbuild:getCart": "cd dist/getCart && zip -r index.zip index.js* && mv index.zip ../getCart.zip",
     "postbuild:handleOrder": "cd dist/handleOrder && zip -r index.zip index.js* && mv index.zip ../handleOrder.zip",
     "postbuild:payment": "cd dist/payment && zip -r index.zip index.js* && mv index.zip ../payment.zip",
-    "postbuild:getOrders": "cd dist/getOrders && zip -r index.zip index.js* && mv index.zip ../getOrders.zip"
+    "postbuild:getOrders": "cd dist/getOrders && zip -r index.zip index.js* && mv index.zip ../getOrders.zip",
+    "postbuild:updateStock": "cd dist/updateStock && zip -r index.zip index.js* && mv index.zip ../updateStock.zip"
   },
   "keywords": [],
   "author": "",

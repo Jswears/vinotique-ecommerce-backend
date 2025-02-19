@@ -13,6 +13,7 @@ import {
   createErrorResponse,
   createSuccessResponse,
 } from "../../../utils/returnResponse";
+import { invokeLambda } from "../../../utils/lambdaInvoker";
 
 // ---- Constants ----
 const TABLE_NAME = process.env.TABLE_NAME || "WineEcommerce";
@@ -154,6 +155,22 @@ const clearCart = async (userId: string) => {
   logger.info(`Cart cleared for user ${userId}`);
 };
 
+// Invoke the updateStock function to update the stock of the wine
+const updateStock = async (items: any) => {
+  logger.info(
+    `Invoking updateStock function with payload: ${JSON.stringify(items)}`
+  );
+
+  const invokeResponse = await invokeLambda({
+    FunctionName: process.env.UPDATE_STOCK_FUNCTION_NAME || "updateStock",
+    Payload: {
+      items,
+    },
+  });
+
+  logger.info("Stock updated successfully", invokeResponse);
+};
+
 // ---- Handler function ----
 export const handler: Handler = async (
   event: EventBridgeEvent<string, any>
@@ -171,6 +188,7 @@ export const handler: Handler = async (
     const order = detail.data.object;
     logger.info("Creating order", order);
 
+    // Fetch cart items from DynamoDB
     const cartItems = await fetchCartFromDynamoDB(order.metadata?.userId);
     const enrichedCartItems = await createEnrichedCartItems(cartItems);
 
@@ -178,8 +196,11 @@ export const handler: Handler = async (
 
     logger.info("Order created successfully", orderResult);
 
+    // Clear cart
     await clearCart(order.metadata.userId);
 
+    // Invoke updateStock function
+    await updateStock(orderResult.items);
     return createSuccessResponse(
       200,
       `Order created successfully ${orderResult}`
