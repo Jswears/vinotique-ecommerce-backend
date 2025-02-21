@@ -1,0 +1,5 @@
+- [ ] Create the users table
+- [ ] Create the update order
+- [ ] Create the delete order
+- [ ] Create the get order
+- [ ] Create the lambda function to send confirmation order email with SES
