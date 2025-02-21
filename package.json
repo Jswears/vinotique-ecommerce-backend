@@ -19,6 +19,7 @@
     "build:getOrders": "esbuild src/functions/Order/getOrders/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/getOrders/index.js",
     "build:updateStock": "esbuild src/functions/Wine/updateStock/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/updateStock/index.js",
     "build:getPresignedUrl": "esbuild src/functions/Wine/getPresignedUrl/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/getPresignedUrl/index.js",
+    "build:sendEmailOrderConfirmation": "esbuild src/functions/Email/sendEmailOrderConfirmation/index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/sendEmailOrderConfirmation/index.js",
     "postbuild:createWine": "cd dist/createWine && zip -r index.zip index.js* && mv index.zip ../createWine.zip",
     "postbuild:getWines": "cd dist/getWines && zip -r index.zip index.js* && mv index.zip ../getWines.zip",
     "postbuild:getWineById": "cd dist/getWineById && zip -r index.zip index.js* && mv index.zip ../getWineById.zip",
@@ -32,7 +33,8 @@
     "postbuild:payment": "cd dist/payment && zip -r index.zip index.js* && mv index.zip ../payment.zip",
     "postbuild:getOrders": "cd dist/getOrders && zip -r index.zip index.js* && mv index.zip ../getOrders.zip",
     "postbuild:updateStock": "cd dist/updateStock && zip -r index.zip index.js* && mv index.zip ../updateStock.zip",
-    "postbuild:getPresignedUrl": "cd dist/getPresignedUrl && zip -r index.zip index.js* && mv index.zip ../getPresignedUrl.zip"
+    "postbuild:getPresignedUrl": "cd dist/getPresignedUrl && zip -r index.zip index.js* && mv index.zip ../getPresignedUrl.zip",
+    "postbuild:sendEmailOrderConfirmation": "cd dist/sendEmailOrderConfirmation && zip -r index.zip index.js* && mv index.zip ../sendEmailOrderConfirmation.zip"
   },
   "keywords": [],
   "author": "",
@@ -47,6 +49,7 @@
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.749.0",
     "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/client-ses": "^3.750.0",
     "@aws-sdk/s3-request-presigner": "^3.750.0",
     "stripe": "^17.6.0",
     "winston": "^3.17.0",
