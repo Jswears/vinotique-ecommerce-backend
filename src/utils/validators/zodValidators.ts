@@ -7,7 +7,16 @@ export const wineSchema = z.object({
   productName: z.string().min(2, "Product name must be at least 2 characters"),
   producer: z.string().min(2, "Producer must be at least 2 characters"),
   description: z.string().min(5, "Description must be at least 5 characters"),
-  category: z.nativeEnum(WineCategoryEnum, { message: "Invalid category" }),
+  category: z
+    .string()
+    .refine(
+      (val) =>
+        Object.values(WineCategoryEnum).includes(val as WineCategoryEnum),
+      {
+        message: "Invalid category",
+      }
+    )
+    .transform((val) => val as WineCategoryEnum),
   region: z.string().min(2, "Region must be at least 2 characters"),
   country: z.string().min(2, "Country must be at least 2 characters"),
   grapeVarietal: z.array(z.string()).optional(),

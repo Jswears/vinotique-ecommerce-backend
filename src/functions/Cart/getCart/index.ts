@@ -86,7 +86,8 @@ export const handler: Handler = async (event: APIGatewayEvent) => {
             RequestItems: {
               [TABLE_NAME]: {
                 Keys: chunk,
-                ProjectionExpression: "wineId, productName, price, imageUrl",
+                ProjectionExpression:
+                  "wineId, productName, price, imageUrl, isInStock, stockQuantity",
               },
             },
           })
@@ -110,6 +111,8 @@ export const handler: Handler = async (event: APIGatewayEvent) => {
         productName: product?.productName || "Unknown",
         price: product?.price || 0,
         imageUrl: product?.imageUrl || "",
+        isInStock: product?.isInStock || false,
+        stockQuantity: product?.stockQuantity || 0,
       };
     });
 
