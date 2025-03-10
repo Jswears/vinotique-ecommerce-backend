@@ -12,9 +12,9 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { z } from "zod";
-import { isValidUrl } from "../../../utils/validators/urlValidator";
-import { Wine, WineCategoryEnum, WinePathParams } from "../../../types";
+import { Wine, WinePathParams } from "../../../types";
 import Logger from "../../../utils/logger";
+import { wineSchema } from "../../../utils/validators/zodValidators";
 
 // ---- Constants ----
 const TABLE_NAME = process.env.TABLE_NAME;
@@ -31,86 +31,39 @@ if (!TABLE_NAME) {
   throw new Error("TABLE_NAME environment variable is not set");
 }
 
-// ---- Zod schema for validating the request body ----
-const WineSchema = z.object({
-  productName: z.string().min(1, "Name is required").optional(),
-  description: z.string().min(1, "Description is required").optional(),
-  category: z.nativeEnum(WineCategoryEnum).optional(),
-  region: z.string().min(1, "Region is required").optional(),
-  country: z.string().min(1, "Country is required").optional(),
-  grapeVarietal: z.array(z.string()).optional(),
-  vintage: z
-    .number()
-    .min(1900, "Vintage year must be greater than 1900")
-    .optional(),
-  alcoholContent: z
-    .number()
-    .min(0, "Alcohol content must be greater than or equal to 0")
-    .optional(),
-  sizeMl: z.number().min(1, "Size must be greater than 0").optional(),
-  price: z.number().min(0.01, "Price must be greater than 0").optional(),
-  stockQuantity: z
-    .number()
-    .min(0, "Stock quantity must be greater than or equal to 0")
-    .optional(),
-  isInStock: z.boolean().optional(),
-  isFeatured: z.boolean().optional(),
-  imageUrl: z
-    .string()
-    .refine((url) => isValidUrl(url), {
-      message: "Invalid image URL",
-    })
-    .optional(),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
-  rating: z
-    .number()
-    .min(0, "Rating must be greater than or equal to 0")
-    .optional(),
-  reviewCount: z
-    .number()
-    .min(0, "Review count must be greater than or equal to 0")
-    .optional(),
-});
-
-const validateWineSchema = (body: unknown): z.infer<typeof WineSchema> => {
-  try {
-    return WineSchema.parse(body);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      throw new Error(
-        `Validation error: ${error.errors.map((e) => e.message).join(", ")}`
-      );
-    }
-    throw error;
-  }
-};
 export const updateWine: Handler = async (
   event: APIGatewayEvent,
   context: Context
 ) => {
-  logger.info("Received request to create a new wine", {
+  logger.info("Received request to update a wine", {
     requestId: context.awsRequestId,
-    body: event.body ? JSON.parse(event.body) : null,
+    body: event.body,
   });
 
   try {
     if (!event.body) {
-      return createBadRequestResponse("Request body is required");
+      return createErrorResponse(400, "Request body is required");
     }
 
-    let body: unknown;
+    // **Parse JSON body** to ensure it's an object, not a string
+    let parsedBody;
     try {
-      body = JSON.parse(event.body);
+      parsedBody = JSON.parse(event.body);
     } catch (error) {
-      return createBadRequestResponse("Invalid JSON format");
+      return createErrorResponse(400, "Invalid JSON format");
     }
 
-    if (typeof body !== "object" || body === null) {
-      return createBadRequestResponse("Request body must be a JSON object");
+    // ---- Validate Input ----
+    const validationResult = wineSchema.safeParse(parsedBody);
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors
+        .map((e) => e.message)
+        .join(", ");
+      logger.warn("Validation failed", { errorMessage });
+      return createErrorResponse(400, `Validation Error: ${errorMessage}`);
     }
 
-    const validatedBody = validateWineSchema(body);
+    const validatedBody = validationResult.data;
 
     const { wineId } = event.pathParameters || ({} as WinePathParams);
 
@@ -152,6 +105,7 @@ export const updateWine: Handler = async (
 
     const attributes: Attribute[] = [
       { key: "productName", alias: "#productName", valueAlias: ":productName" },
+      { key: "producer", alias: "#producer", valueAlias: ":producer" },
       { key: "description", alias: "#description", valueAlias: ":description" },
       { key: "category", alias: "#category", valueAlias: ":category" },
       { key: "region", alias: "#region", valueAlias: ":region" },
