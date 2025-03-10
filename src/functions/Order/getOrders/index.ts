@@ -1,3 +1,5 @@
+import jwt from "jsonwebtoken";
+
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import Logger from "../../../utils/logger";
 import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb";
@@ -10,7 +12,7 @@ import {
 
 // ---- Constants ----
 const TABLE_NAME = process.env.TABLE_NAME || "WineEcommerce";
-const defaultPageSize = 10;
+const DEFAULT_PAGE_SIZE = 10;
 const logger = new Logger("getOrders");
 
 // ---- DynamoDB client ----
@@ -29,7 +31,7 @@ export const handler: Handler = async (event: APIGatewayEvent) => {
     const queryParams = event.queryStringParameters as QueryParams;
     logger.info("Query parameters", { queryParams });
 
-    let limit = defaultPageSize;
+    let limit = DEFAULT_PAGE_SIZE;
     let startKey;
 
     if (queryParams?.pageSize) {
