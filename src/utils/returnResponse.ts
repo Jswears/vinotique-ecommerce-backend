@@ -5,8 +5,9 @@ import {
 } from "../types/utils";
 import { formatDate } from "./formatDate";
 
-const DEFAULT_CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:3000";
+// "https://vinotique.joaquinswears.com" ||
 
+const DEFAULT_CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:3000";
 export const log = (
   message: string,
   level: "INFO" | "ERROR" | "DEBUG" = "INFO"
