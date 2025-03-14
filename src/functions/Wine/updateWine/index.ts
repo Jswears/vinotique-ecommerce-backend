@@ -1,4 +1,9 @@
-import { APIGatewayEvent, Context, Handler } from "aws-lambda";
+import {
+  APIGatewayEvent,
+  Context,
+  Handler,
+  APIGatewayProxyResult,
+} from "aws-lambda";
 import {
   createBadRequestResponse,
   createErrorResponse,
@@ -11,8 +16,6 @@ import {
   GetCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { z } from "zod";
-import { Wine, WinePathParams } from "../../../types";
 import Logger from "../../../utils/logger";
 import { wineSchema } from "../../../utils/validators/zodValidators";
 
@@ -20,6 +23,7 @@ import { wineSchema } from "../../../utils/validators/zodValidators";
 const TABLE_NAME = process.env.TABLE_NAME;
 const WINE_PK_PREFIX = "WINE#";
 const WINE_SK = "META";
+const ADMIN_GROUP = "ADMINS";
 const logger = new Logger("updateWine");
 
 // ---- DynamoDB client ----
@@ -31,21 +35,30 @@ if (!TABLE_NAME) {
   throw new Error("TABLE_NAME environment variable is not set");
 }
 
-export const updateWine: Handler = async (
+export const handler: Handler = async (
   event: APIGatewayEvent,
   context: Context
-) => {
+): Promise<APIGatewayProxyResult> => {
+  const requestId = context.awsRequestId;
   logger.info("Received request to update a wine", {
-    requestId: context.awsRequestId,
+    requestId,
     body: event.body,
   });
 
   try {
-    if (!event.body) {
-      return createErrorResponse(400, "Request body is required");
+    // ---- Authorization: Ensure Admin User ----
+    const userGroups =
+      event.requestContext?.authorizer?.claims["cognito:groups"];
+    if (!userGroups || !userGroups.includes(ADMIN_GROUP)) {
+      logger.warn("Unauthorized access attempt", { requestId });
+      return createErrorResponse(403, "Forbidden: Admin access required");
     }
 
-    // **Parse JSON body** to ensure it's an object, not a string
+    if (!event.body) {
+      return createBadRequestResponse("Request body is required");
+    }
+
+    // **Parse JSON body**
     let parsedBody;
     try {
       parsedBody = JSON.parse(event.body);
@@ -59,22 +72,19 @@ export const updateWine: Handler = async (
       const errorMessage = validationResult.error.errors
         .map((e) => e.message)
         .join(", ");
-      logger.warn("Validation failed", { errorMessage });
+      logger.warn("Validation failed", { requestId, errorMessage });
       return createErrorResponse(400, `Validation Error: ${errorMessage}`);
     }
 
     const validatedBody = validationResult.data;
-
-    const { wineId } = event.pathParameters || ({} as WinePathParams);
+    const { wineId } = event.pathParameters || {};
 
     // Validate wineId
     if (!wineId) {
       return createErrorResponse(400, "Wine ID is required");
     }
 
-    logger.info(`Updating wine with ID: ${wineId}`, {
-      requestId: context.awsRequestId,
-    });
+    logger.info(`Updating wine with ID: ${wineId}`, { requestId });
 
     const getParams = {
       TableName: TABLE_NAME,
@@ -87,62 +97,19 @@ export const updateWine: Handler = async (
     const getResult = await docClient.send(new GetCommand(getParams));
 
     if (!getResult.Item) {
-      logger.info(`Wine not found with ID: ${wineId}`, {
-        requestId: context.awsRequestId,
-      });
+      logger.info(`Wine not found with ID: ${wineId}`, { requestId });
       return createErrorResponse(404, "Wine not found");
     }
 
-    const updateExpressions = [];
-    const expressionAttributeNames: { [key: string]: string } = {};
-    const expressionAttributeValues: { [key: string]: any } = {};
+    // ---- Construct Update Expression ----
+    const updateExpressions: string[] = [];
+    const expressionAttributeNames: Record<string, string> = {};
+    const expressionAttributeValues: Record<string, any> = {};
 
-    type Attribute = {
-      key: keyof Wine;
-      alias: string;
-      valueAlias: string;
-    };
-
-    const attributes: Attribute[] = [
-      { key: "productName", alias: "#productName", valueAlias: ":productName" },
-      { key: "producer", alias: "#producer", valueAlias: ":producer" },
-      { key: "description", alias: "#description", valueAlias: ":description" },
-      { key: "category", alias: "#category", valueAlias: ":category" },
-      { key: "region", alias: "#region", valueAlias: ":region" },
-      { key: "country", alias: "#country", valueAlias: ":country" },
-      {
-        key: "grapeVarietal",
-        alias: "#grapeVarietal",
-        valueAlias: ":grapeVarietal",
-      },
-      { key: "vintage", alias: "#vintage", valueAlias: ":vintage" },
-      {
-        key: "alcoholContent",
-        alias: "#alcoholContent",
-        valueAlias: ":alcoholContent",
-      },
-      { key: "sizeMl", alias: "#sizeMl", valueAlias: ":sizeMl" },
-      { key: "price", alias: "#price", valueAlias: ":price" },
-      {
-        key: "stockQuantity",
-        alias: "#stockQuantity",
-        valueAlias: ":stockQuantity",
-      },
-      { key: "isInStock", alias: "#isInStock", valueAlias: ":isInStock" },
-      { key: "isFeatured", alias: "#isFeatured", valueAlias: ":isFeatured" },
-      { key: "imageUrl", alias: "#imageUrl", valueAlias: ":imageUrl" },
-      { key: "rating", alias: "#rating", valueAlias: ":rating" },
-      { key: "reviewCount", alias: "#reviewCount", valueAlias: ":reviewCount" },
-    ];
-
-    for (const attr of attributes) {
-      if ((validatedBody as unknown as Wine)[attr.key] !== undefined) {
-        updateExpressions.push(`${attr.alias} = ${attr.valueAlias}`);
-        expressionAttributeNames[attr.alias] = attr.key;
-        expressionAttributeValues[attr.valueAlias] = (
-          validatedBody as unknown as Wine
-        )[attr.key];
-      }
+    for (const key of Object.keys(validatedBody)) {
+      updateExpressions.push(`#${key} = :${key}`);
+      expressionAttributeNames[`#${key}`] = key;
+      expressionAttributeValues[`:${key}`] = (validatedBody as any)[key];
     }
 
     // Ensure updatedAt is always updated
@@ -151,13 +118,11 @@ export const updateWine: Handler = async (
     expressionAttributeValues[":updatedAt"] = new Date().toISOString();
 
     if (updateExpressions.length === 0) {
-      logger.error(
-        `No valid attributes found to update, requestId: ${context.awsRequestId}`
-      );
+      logger.error(`No valid attributes found to update`, { requestId });
       return createBadRequestResponse("No valid attributes found to update");
     }
 
-    const params = {
+    const updateParams = {
       TableName: TABLE_NAME,
       Key: {
         PK: `${WINE_PK_PREFIX}${wineId}`,
@@ -168,30 +133,12 @@ export const updateWine: Handler = async (
       ExpressionAttributeValues: expressionAttributeValues,
     };
 
-    await docClient.send(new UpdateCommand(params));
-    logger.info(
-      `Wine updated successfully, requestId: ${context.awsRequestId}`
-    );
-    return createSuccessResponse(200, {
-      message: "Wine updated successfully",
-    });
+    await docClient.send(new UpdateCommand(updateParams));
+    logger.info(`Wine updated successfully`, { requestId });
+
+    return createSuccessResponse(200, { message: "Wine updated successfully" });
   } catch (error: any) {
-    if (error instanceof z.ZodError) {
-      const requestId = context.awsRequestId;
-      logger.error(
-        `Error updating wine: ${error.errors
-          .map((e) => e.message)
-          .join(", ")}, requestId: ${requestId}`
-      );
-
-      return createBadRequestResponse(
-        error.errors.map((e) => e.message).join(", ")
-      );
-    }
-
-    logger.error(`Error updating wine: ${error.message}`, {
-      requestId: context.awsRequestId,
-    });
-    return createServerErrorResponse(`Error updating wine: ${error.message}`);
+    logger.error(`Error updating wine`, { requestId, error });
+    return createServerErrorResponse("Error updating wine.");
   }
 };

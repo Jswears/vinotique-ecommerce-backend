@@ -76,7 +76,7 @@ const createEnrichedCartItems = async (cartItems: any) => {
           RequestItems: {
             [TABLE_NAME]: {
               Keys: chunk as Record<string, any>[],
-              ProjectionExpression: "wineId, productName, price",
+              ProjectionExpression: "wineId, productName, price, category",
             },
           },
         })
@@ -96,6 +96,7 @@ const createEnrichedCartItems = async (cartItems: any) => {
       ...item,
       productName: product?.productName || "Unknown",
       price: product?.price || 0,
+      category: product?.category || "Unknown",
     };
   });
   return enrichedCartItems;

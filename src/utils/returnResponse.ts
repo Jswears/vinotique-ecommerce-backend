@@ -7,7 +7,8 @@ import { formatDate } from "./formatDate";
 
 // "https://vinotique.joaquinswears.com" ||
 
-const DEFAULT_CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:3000";
+const DEFAULT_CORS_ORIGIN =
+  process.env.CORS_ORIGIN || "https://vinotique.joaquinswears.com";
 export const log = (
   message: string,
   level: "INFO" | "ERROR" | "DEBUG" = "INFO"

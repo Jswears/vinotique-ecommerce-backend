@@ -1,0 +1,549 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "API Gateway for Vinotique, with Cognito Authentication & Admin-Only Restrictions"
+
+Parameters:
+  StageName:
+    Type: String
+    Default: "dev"
+    Description: "Deployment stage (dev, prod)."
+
+  CognitoUserPoolId:
+    Type: String
+    Description: "Cognito User Pool ID"
+
+  CognitoAppClientId:
+    Type: String
+    Description: "Cognito App Client ID"
+
+Resources:
+  ######################################################
+  # 1) API Gateway & Deployment
+  ######################################################
+  VinotiqueApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: "VinotiqueAPI"
+      Description: "API Gateway for Vinotique"
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  VinotiqueCognitoAuthorizer:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      Name: CognitoAuth
+      Type: COGNITO_USER_POOLS
+      IdentitySource: "method.request.header.Authorization"
+      ProviderARNs:
+        - !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}"
+      RestApiId: !Ref VinotiqueApi
+
+  VinotiqueApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - WinesMethodPOST
+      - WinesMethodGET
+      - WineIdMethodGET
+      - WineIdMethodPUT
+      - WineIdMethodDELETE
+      - PresignedUrlMethodPOST
+      - CartUserIdMethodGET
+      - CartUserIdMethodPOST
+      - OrdersMethodGET
+      - PaymentMethodPOST
+    Properties:
+      RestApiId: !Ref VinotiqueApi
+      Description: "Deployment for Vinotique API"
+
+  VinotiqueApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      StageName: !Ref StageName
+      DeploymentId: !Ref VinotiqueApiDeployment
+      RestApiId: !Ref VinotiqueApi
+      Description: "Vinotique API Stage"
+      AccessLogSetting:
+        DestinationArn: !GetAtt VinotiqueApiLogGroup.Arn
+        Format: "$context.identity.sourceIp - $context.requestId [$context.requestTime] $context.httpMethod $context.resourcePath $context.status"
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          ThrottlingBurstLimit: 100
+          ThrottlingRateLimit: 50
+
+  VinotiqueApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/apigateway/vinotique-api-${StageName}"
+      RetentionInDays: 30
+
+  ######################################################
+  # 2) /wines
+  ######################################################
+  WinesResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt VinotiqueApi.RootResourceId
+      PathPart: wines
+      RestApiId: !Ref VinotiqueApi
+
+  WinesMethodGET:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref WinesResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:getWines/invocations"
+      MethodResponses:
+        - StatusCode: 200
+
+  WinesMethodPOST:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId: !Ref WinesResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref VinotiqueCognitoAuthorizer
+      RequestParameters:
+        method.request.header.Authorization: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:createWine/invocations"
+      MethodResponses:
+        - StatusCode: 201
+
+  WinesOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId: !Ref WinesResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Authorization,Content-Type'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,POST'"
+            ResponseTemplates:
+              application/json: ""
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+
+  ######################################################
+  # 3) /wines/{wineId}
+  ######################################################
+
+  WineIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref WinesResource
+      PathPart: "{wineId}"
+      RestApiId: !Ref VinotiqueApi
+
+  WineIdMethodGET:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref WineIdResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:getWineById/invocations"
+      MethodResponses:
+        - StatusCode: 200
+
+  WineIdMethodPUT:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: PUT
+      ResourceId: !Ref WineIdResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref VinotiqueCognitoAuthorizer
+      RequestParameters:
+        method.request.header.Authorization: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:updateWine/invocations"
+      MethodResponses:
+        - StatusCode: 200
+
+  WineIdMethodDELETE:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: DELETE
+      ResourceId: !Ref WineIdResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref VinotiqueCognitoAuthorizer
+      RequestParameters:
+        method.request.header.Authorization: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:deleteWine/invocations"
+      MethodResponses:
+        - StatusCode: 200
+
+  WineIdOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId: !Ref WineIdResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Authorization,Content-Type'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,DELETE,PUT'"
+            ResponseTemplates:
+              application/json: ""
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+
+  ######################################################
+  # 4) /wines/presigned-url
+  ######################################################
+  PresignedUrlResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref WinesResource
+      PathPart: presigned-url
+      RestApiId: !Ref VinotiqueApi
+
+  PresignedUrlMethodPOST:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId: !Ref PresignedUrlResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref VinotiqueCognitoAuthorizer
+      RequestParameters:
+        method.request.header.Authorization: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:getPresignedUrl/invocations"
+      MethodResponses:
+        - StatusCode: 200
+
+  PresignedUrlOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId: !Ref PresignedUrlResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Authorization,Content-Type'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST'"
+            ResponseTemplates:
+              application/json: ""
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+
+  ######################################################
+  # 5) /cart/{userId}
+  ######################################################
+  CartResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt VinotiqueApi.RootResourceId
+      PathPart: cart
+      RestApiId: !Ref VinotiqueApi
+
+  CartUserIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref CartResource
+      PathPart: "{userId}"
+      RestApiId: !Ref VinotiqueApi
+
+  CartUserIdMethodGET:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref CartUserIdResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:getCart/invocations"
+      MethodResponses:
+        - StatusCode: 200
+
+  CartUserIdMethodPOST:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId: !Ref CartUserIdResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:updateCart/invocations"
+      MethodResponses:
+        - StatusCode: 200
+
+  CartUserIdOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId: !Ref CartUserIdResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Authorization,Content-Type'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,POST'"
+            ResponseTemplates:
+              application/json: ""
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+
+  ######################################################
+  # 6) /orders
+  ######################################################
+  OrdersResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt VinotiqueApi.RootResourceId
+      PathPart: orders
+      RestApiId: !Ref VinotiqueApi
+
+  OrdersMethodGET:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref OrdersResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref VinotiqueCognitoAuthorizer
+      RequestParameters:
+        method.request.header.Authorization: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:getOrders/invocations"
+      MethodResponses:
+        - StatusCode: 200
+
+  OrdersOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId: !Ref OrdersResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Authorization,Content-Type'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET'"
+            ResponseTemplates:
+              application/json: ""
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+
+  ######################################################
+  # 7) /payment
+  ######################################################
+
+  PaymentResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt VinotiqueApi.RootResourceId
+      PathPart: payment
+      RestApiId: !Ref VinotiqueApi
+
+  PaymentMethodPOST:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId: !Ref PaymentResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref VinotiqueCognitoAuthorizer
+      RequestParameters:
+        method.request.header.Authorization: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:payment/invocations"
+      MethodResponses:
+        - StatusCode: 200
+
+  PaymentOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId: !Ref PaymentResource
+      RestApiId: !Ref VinotiqueApi
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Authorization,Content-Type'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST'"
+            ResponseTemplates:
+              application/json: ""
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+
+  ######################################################
+  # 8) Lambda Permissions
+  ######################################################
+  LambdaPermissionGetWines:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:getWines"
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*"
+
+  LambdaPermissionCreateWine:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:createWine"
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*"
+
+  LambdaPermissionGetWineById:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:getWineById"
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*"
+
+  LambdaPermissionUpdateWine:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:updateWine"
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*"
+
+  LambdaPermissionDeleteWine:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:deleteWine"
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*"
+
+  LambdaPermissionGetPresignedUrl:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:getPresignedUrl"
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*"
+
+  LambdaPermissionGetCart:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:getCart"
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*"
+
+  LambdaPermissionUpdateCart:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:updateCart"
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*"
+
+  LambdaPermissionGetOrders:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:getOrders"
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*"
+
+  LambdaPermissionPayment:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:payment"
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*"
+
+Outputs:
+  ApiUrl:
+    Description: "Invoke URL for the deployed API"
+    Value: !Sub "https://${VinotiqueApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}"

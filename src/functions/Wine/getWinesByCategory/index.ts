@@ -23,7 +23,7 @@ if (!TABLE_NAME) {
 }
 
 // ---- Handler ----
-export const getWinesByCategory: Handler = async (
+export const handler: Handler = async (
   event: APIGatewayEvent,
   context: Context
 ) => {
