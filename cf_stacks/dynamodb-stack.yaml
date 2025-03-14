@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "DynamoDB table for Wine Ecommerce application."
+
+Resources:
+  WineEcommerceTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: WineEcommerce
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+        - AttributeName: GSI2PK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI2
+          KeySchema:
+            - AttributeName: GSI2PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Project
+          Value: Vinotique
+        - Key: Environment
+          Value: Production
+
+Outputs:
+  TableName:
+    Description: "DynamoDB table name"
+    Value: !Ref WineEcommerceTable
+  TableArn:
+    Description: "DynamoDB table ARN"
+    Value: !GetAtt WineEcommerceTable.Arn
+  StreamArn:
+    Description: "DynamoDB Stream ARN"
+    Value: !GetAtt WineEcommerceTable.StreamArn

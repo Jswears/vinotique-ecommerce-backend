@@ -21,6 +21,7 @@ import { WineProduct } from "../../../types";
 const TABLE_NAME = process.env.TABLE_NAME;
 const WINE_PREFIX = "WINE#";
 const CATEGORY_PREFIX = "CATEGORY#";
+const ADMIN_GROUP = "ADMINS";
 const logger = new Logger("createWine");
 
 // ---- Ensure Required Environment Variables ----
@@ -33,7 +34,7 @@ const dynamoDbClient = new DynamoDBClient({});
 const doClient = DynamoDBDocumentClient.from(dynamoDbClient);
 
 // ---- Main Lambda Handler ----
-export const createWine: Handler = async (
+export const handler: Handler = async (
   event: APIGatewayEvent,
   context: Context
 ): Promise<APIGatewayProxyResult> => {
@@ -41,13 +42,21 @@ export const createWine: Handler = async (
   logger.info("Received request to create a new wine", { requestId });
 
   try {
-    // ---- Ensure Request Body Exists ----
+    // ---- 1️⃣ Authorization: Ensure Admin User ----
+    const userGroups =
+      event.requestContext?.authorizer?.claims["cognito:groups"];
+    if (!userGroups || !userGroups.includes(ADMIN_GROUP)) {
+      logger.warn("Unauthorized access attempt", { requestId });
+      return createErrorResponse(403, "Forbidden: Admin access required");
+    }
+
+    // ---- 2️⃣ Ensure Request Body Exists ----
     if (!event.body) {
       logger.warn("Request body is missing", { requestId });
       return createBadRequestResponse("Request body is required");
     }
 
-    // ---- Parse JSON Body ----
+    // ---- 3️⃣ Parse & Validate JSON Body ----
     let body: unknown;
     try {
       body = JSON.parse(event.body);
@@ -56,7 +65,6 @@ export const createWine: Handler = async (
       return createBadRequestResponse("Invalid JSON in request body");
     }
 
-    // ---- Validate Input ----
     const validationResult = wineSchema.safeParse(body);
     if (!validationResult.success) {
       const errorMessage = validationResult.error.errors
@@ -66,11 +74,12 @@ export const createWine: Handler = async (
       return createErrorResponse(400, `Validation Error: ${errorMessage}`);
     }
 
+    // ---- 4️⃣ Generate Wine ID & Category ----
     const validatedBody = validationResult.data;
     const wineId = uuidv4();
     const categoryId = `${CATEGORY_PREFIX}${validatedBody.category}`;
 
-    // ---- Create Wine Object ----
+    // ---- 5️⃣ Create Wine Object ----
     const newWine: WineProduct = {
       // ---- Primary Keys ----
       PK: `${WINE_PREFIX}${wineId}`,
@@ -108,7 +117,7 @@ export const createWine: Handler = async (
       updatedAt: new Date().toISOString(),
     };
 
-    // ---- Store in DynamoDB ----
+    // ---- 6️⃣ Store in DynamoDB ----
     await doClient.send(
       new PutCommand({ TableName: TABLE_NAME, Item: newWine })
     );

@@ -28,7 +28,7 @@ const client = new DynamoDBClient({});
 const doClient = DynamoDBDocumentClient.from(client);
 
 // ---- Handler ----
-export const getWineById: Handler = async (
+export const handler: Handler = async (
   event: APIGatewayEvent,
   context: Context
 ): Promise<APIGatewayProxyResult> => {

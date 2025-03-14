@@ -22,7 +22,7 @@ if (!TABLE_NAME) {
 }
 
 // ---- Handler ----
-export const searchWines: Handler = async (event: APIGatewayEvent) => {
+export const handler: Handler = async (event: APIGatewayEvent) => {
   logger.info("Received event", event);
 
   try {
