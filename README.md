@@ -1,196 +1,231 @@
-# Vinotique E-commerce API
+# Vinotique E-commerce API Backend
 
-This project is an e-commerce API for Vinotique, a wine store. It is built using AWS services such as Lambda, DynamoDB, API Gateway, and Cognito for authentication. The API supports various operations like managing wines, handling orders, updating stock, and processing payments.
+An AWS-based serverless e-commerce API for **Vinotique**, a wine store. It uses Lambda, DynamoDB, API Gateway, Cognito for authentication, S3 for product image storage, and Stripe for payment processing.
 
 ## Table of Contents
 
-- [Architecture](#architecture)
-- [Setup](#setup)
-- [Deployment](#deployment)
+- [Project Architecture](#project-architecture)
+- [Prerequisites](#prerequisites)
+- [Getting Started](#getting-started)
+  - [Repository Setup](#repository-setup)
+  - [Install Dependencies](#install-dependencies)
+  - [Environment Configuration](#environment-configuration)
+- [S3 Bucket Configuration](#s3-bucket-configuration)
+- [Deployment Guide](#deployment-guide)
 - [API Endpoints](#api-endpoints)
-- [Scripts](#scripts)
-- [Environment Variables](#environment-variables)
 - [Database Schema](#database-schema)
+- [Scripts Reference](#scripts-reference)
+- [Stripe Integration](#stripe-integration)
+- [Additional Notes](#additional-notes)
+- [License](#license)
 
-## Architecture
+## Project Architecture
 
-The API is built using the following AWS services:
+- **Lambda**: Serverless backend logic.
+- **DynamoDB**: NoSQL database for products, orders, and carts.
+- **API Gateway**: Entry point for API calls.
+- **Cognito**: Manages user authentication.
+- **S3**: Stores product images.
 
-- **Lambda**: For serverless functions.
-- **DynamoDB**: For storing wine products, orders, and cart items.
-- **API Gateway**: For exposing the API endpoints.
-- **Cognito**: For user authentication and authorization.
-- **S3**: For storing product images.
+## Prerequisites
 
-## Setup
-
-### Prerequisites
-
-- AWS CLI configured with appropriate permissions.
+- AWS CLI with proper permissions.
 - Node.js and npm installed.
-- AWS account with necessary IAM roles and policies.
+- AWS account with relevant IAM roles and policies.
 
-### Installation
+## Getting Started
 
-1. Clone the repository:
+### Repository Setup
 
-   ```bash
-   git clone https://github.com/Jswears/vinotique-ecommerce-backend.git
-   cd vinotique-ecommerce-api
-   ```
+```bash
+git clone https://github.com/Jswears/vinotique-ecommerce-backend.git
+cd vinotique-ecommerce-api
+```
 
-2. Install dependencies:
+### Install Dependencies
 
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+```
 
-3. Create a `.env` file in the root directory and add the necessary environment variables:
-   ```env
-   TABLE_NAME=WineEcommerce
-   BUCKET_NAME=your_bucket_name_for_images
-   STRIPE_SECRET_KEY=your_stripe_secret_key
-   COGNITO_USER_POOL_ID=your_cognito_user_pool_id
-   COGNITO_APP_CLIENT_ID=your_cognito_app_client_id
-   ```
+### Environment Configuration
 
-## Deployment
+Create a `.env` file in the root directory. Refer to `.env.example`. Example:
 
-### Build and Deploy Lambda Functions
+```env
+TABLE_NAME=WineEcommerce
+COGNITO_USER_POOL_ID=<your_cognito_user_pool_id>
+COGNITO_APP_CLIENT_ID=<your_cognito_app_client_id>
+STRIPE_SECRET_KEY=<your_stripe_secret_key>
+EVENT_BUS_NAME=<your_event_bus_name>
+BUCKET_NAME=<your_bucket_name>
+AWS_REGION=<your_aws_region>
+```
 
-1. Build all Lambda functions:
+> _Tip_: Follow frontend repository instructions to easily set up Cognito resources with `npx ampx amplify`.
 
-   ```bash
-   make build
-   ```
+## S3 Bucket Configuration
 
-2. Deploy all Lambda functions:
-   ```bash
-   make deploy
-   ```
+### Update Bucket CORS
 
-### Deploy CloudFormation Stacks
+Go to **S3 > Buckets > Your Bucket > Permissions > CORS Configuration** and set:
 
-1. Deploy DynamoDB stack:
+```json
+[
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["PUT", "GET", "HEAD"],
+    "AllowedOrigins": ["<your_domain>"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3000
+  }
+]
+```
 
-   ```bash
-   make create-dynamodb
-   ```
+### Create a New S3 Bucket (Optional)
 
-2. Deploy API Gateway stack:
-   ```bash
-   make create-api
-   ```
+Update `/scripts/cors/bucket_cors.json` to match your domain and run:
+
+```bash
+make s3-bucket
+```
+
+### Add Optional Bucket Policy (for CloudFront)
+
+```json
+{
+  "Version": "2008-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowCloudFrontServicePrincipal",
+      "Effect": "Allow",
+      "Principal": { "Service": "cloudfront.amazonaws.com" },
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::<your_bucket_name>/*",
+      "Condition": {
+        "StringEquals": {
+          "AWS:SourceArn": "arn:aws:cloudfront::<your_account_id>:distribution/<your_distribution_id>"
+        }
+      }
+    },
+    {
+      "Sid": "AllowCloudFrontOriginAccessIdentity",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity <your_identity_id>"
+      },
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::<your_bucket_name>/*"
+    }
+  ]
+}
+```
+
+## Deployment Guide
+
+### Build and Deploy Lambdas
+
+```bash
+make build
+make deploy
+```
+
+### Deploy Infrastructure
+
+- DynamoDB:
+
+```bash
+make create-dynamodb
+```
+
+- API Gateway:
+
+```bash
+make create-api
+```
+
+> _Recommendation_: Follow the least privilege principle when creating IAM policies for each Lambda.
 
 ## API Endpoints
 
+> **Note**: All endpoints require a valid JWT token (Cognito authorization).
+>
+> Frontend repo: [Vinotique E-commerce Frontend](https://github.com/Jswears/vinotique-ecommerce-frontend.git)
+
 ### Wines
 
-- `GET /wines`: Retrieve all wines.
-- `POST /wines`: Create a new wine (Admin only).
-- `GET /wines/{wineId}`: Retrieve a wine by ID.
-- `PUT /wines/{wineId}`: Update a wine by ID (Admin only).
-- `DELETE /wines/{wineId}`: Delete a wine by ID (Admin only).
+- `GET /wines` — Get all wines
+- `POST /wines` — Add new wine (Admin only)
+- `GET /wines/{wineId}` — Get wine by ID
+- `PUT /wines/{wineId}` — Update wine by ID (Admin only)
+- `DELETE /wines/{wineId}` — Delete wine by ID (Admin only)
 
 ### Cart
 
-- `GET /cart/{userId}`: Retrieve cart items for a user.
-- `POST /cart/{userId}`: Update cart items for a user.
+- `GET /cart/{userId}` — Get cart items for user
+- `POST /cart/{userId}` — Update cart for user
 
 ### Orders
 
-- `GET /orders`: Retrieve all orders (Admin only).
+- `GET /orders` — Get all orders (Admin only)
 
 ### Payment
 
-- `POST /payment`: Process a payment.
+- `POST /payment` — Process payment
 
 ### Presigned URL
 
-- `POST /wines/presigned-url`: Get a presigned URL for uploading images (Admin only).
-
-## Scripts
-
-### Build Scripts
-
-- `make build`: Build lambda function, gives the option to build a single function using `LAMBDA` variable.
-
-### Deployment Scripts
-
-- `make deploy`: Deploy lambda functions, gives the option to deploy all functions or a single function using `LAMBDA` variable.
-
-### Deletion Scripts
-
-- `make delete`: Delete all Lambda functions.
-- `make delete-single LAMBDA=<function_name>`: Delete a single Lambda function.
-- `make delete-cloudformation`: Delete both DynamoDB and API Gateway stacks.
-
-## Environment Variables
-
-- `TABLE_NAME`: Name of the DynamoDB table.
-- `BUCKET_NAME`: Name of the S3 bucket for storing product images.
-- `STRIPE_SECRET_KEY`: Stripe secret key for payment processing.
-- `COGNITO_USER_POOL_ID`: Cognito User Pool ID for authentication.
-- `COGNITO_APP_CLIENT_ID`: Cognito App Client ID for authentication.
+- `POST /wines/presigned-url` — Generate S3 presigned URL (Admin only)
 
 ## Database Schema
 
-The DynamoDB table `WineEcommerce` has the following schema:
+### DynamoDB `WineEcommerce` Table
 
-### Primary Keys
-
-- `PK` (Partition Key): Primary key for the table.
-- `SK` (Sort Key): Secondary key for the table.
-
-### Global Secondary Indexes (GSI)
-
-- `GSI1`:
-  - `GSI1PK` (Partition Key)
-  - `GSI1SK` (Sort Key)
-- `GSI2`:
-  - `GSI2PK` (Partition Key)
-  - `GSI2SK` (Sort Key)
+- **Primary Keys:** `PK` (Partition Key), `SK` (Sort Key)
+- **GSIs:**
+  - GSI1: `GSI1PK`, `GSI1SK`
+  - GSI2: `GSI2PK`, `GSI2SK`
 
 ### Wine Attributes
 
-- `PK`: Primary key for the table.
-- `SK`: Secondary key for the table.
-- `GSI1PK`: Partition key for the first global secondary index.
-- `GSI1SK`: Sort key for the first global secondary index.
-- `GSI2PK`: Partition key for the second global secondary index.
-- `GSI2SK`: Sort key for the second global secondary index.
-- `entityType`: Type of the entity (e.g., `PRODUCT`, `ORDER`).
-- `wineId`: Unique identifier for the wine.
-- `productName`: Name of the wine product.
-- `producer`: Producer of the wine.
-- `description`: Description of the wine.
-- `category`: Category of the wine.
-- `region`: Region where the wine is produced.
-- `country`: Country where the wine is produced.
-- `grapeVarietal`: Array of grape varietals used in the wine.
-- `vintage`: Year the wine was produced.
-- `alcoholContent`: Alcohol content of the wine.
-- `sizeMl`: Size of the wine bottle in milliliters.
-- `price`: Price of the wine.
-- `stockQuantity`: Quantity of the wine in stock.
-- `isInStock`: Boolean indicating if the wine is in stock.
-- `isFeatured`: Boolean indicating if the wine is featured.
-- `imageUrl`: URL of the wine product image.
-- `rating`: Rating of the wine.
-- `reviewCount`: Number of reviews for the wine.
-- `createdAt`: Timestamp when the wine was created.
-- `updatedAt`: Timestamp when the wine was last updated.
+- `entityType`, `wineId`, `productName`, `producer`, `description`, `category`, `region`, `country`, `grapeVarietal`, `vintage`, `alcoholContent`, `sizeMl`, `price`, `stockQuantity`, `isInStock`, `isFeatured`, `imageUrl`, `rating`, `reviewCount`, `createdAt`, `updatedAt`
 
 ### Order Attributes
 
-- `orderId`: Unique identifier for the order.
-- `customer`: Customer name.
-- `orderStatus`: Status of the order (e.g., `PENDING`, `COMPLETED`).
-- `totalAmount`: Total amount of the order.
-- `cartItems`: Array of items in the cart.
-- `shippingDetails`: Shipping details for the order.
-- `createdAt`: Timestamp when the order was created.
+- `orderId`, `customer`, `orderStatus`, `totalAmount`, `cartItems`, `shippingDetails`, `createdAt`
+
+## Scripts Reference
+
+### Build
+
+- `make build` — Build all Lambda functions
+
+### Deploy
+
+- `make deploy` — Deploy all Lambda functions
+- `make create-dynamodb` — Create DynamoDB stack
+- `make create-api` — Create API Gateway stack
+
+### Delete
+
+- `make delete` — Delete all Lambda functions
+- `make delete-single LAMBDA=<function_name>` — Delete single Lambda
+- `make delete-cloudformation` — Remove DynamoDB and API Gateway stacks
+
+### S3 Bucket Management
+
+- `make s3-bucket` — Create and configure S3 bucket
+
+## Stripe Integration
+
+Follow [Stripe's Getting Started Guide](https://docs.stripe.com/get-started) to configure API keys and webhook endpoints. EventBridge integration happens via the webhook setup.
+
+## Additional Notes
+
+- The API Gateway currently uses a `dev` stage. You can add a `prod` stage as needed.
+- Make sure to regularly review IAM permissions and Lambda timeouts for optimization.
+- **IAM Roles and Policies**: Refer to the `/docs/iam_roles_and_policies.md` folder for detailed information on setting up and reviewing IAM roles and policies.
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the [MIT License](LICENSE).
